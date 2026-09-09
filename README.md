@@ -4,7 +4,7 @@
 
 Flutter app for the Mamba Fast Tracker technical challenge: intermittent fasting and calorie tracking, Android first, all data stored on the device.
 
-The repository currently has the app foundation: theme, composition root, clock abstraction, and the validation workflow. Product features are implemented issue by issue.
+The repository currently has the app foundation and local login with a persistent session. Product features are implemented issue by issue.
 
 ## Screenshots
 
@@ -12,9 +12,12 @@ TODO: Add screenshots once the application UI exists.
 
 ## Features
 
+Done:
+
+- Local login with a persistent session. The session is restored after closing and reopening the app.
+
 Planned from the challenge specification:
 
-- Simple login with a persistent session
 - Predefined and custom fasting protocols
 - Fasting timer that stays correct in the background and after restarting
 - Notifications when fasting starts and ends
@@ -23,12 +26,13 @@ Planned from the challenge specification:
 - Previous-day summaries and a weekly chart
 - Local data persistence
 
-All features above are pending. Work is tracked in [GitHub Issues](https://github.com/matheusmedrado/desafioMamba/issues).
+Remaining work is tracked in [GitHub Issues](https://github.com/matheusmedrado/desafioMamba/issues).
 
 ## Tech Stack
 
 - Flutter 3.47.2 with Dart 3.13.2
 - `flutter_riverpod` for state management and dependency injection
+- `shared_preferences` for small single-record data such as the session
 - Manrope (SIL Open Font License) bundled as the app font
 - `flutter_test` and `flutter_lints`
 - Java 17, Android platform 36, Gradle from the generated Android project
@@ -36,7 +40,6 @@ All features above are pending. Work is tracked in [GitHub Issues](https://githu
 
 Planned for upcoming issues, listed here because the architecture already assumes them:
 
-- `shared_preferences` for session, selected protocol, and the active fasting session
 - `sqflite` for meals and completed fasting sessions
 - `flutter_local_notifications` and `timezone` for start and goal notifications
 
@@ -70,12 +73,17 @@ assets/
   images/               Wordmark
 lib/
   main.dart             Composition root: ProviderScope and app
-  app/                  MaterialApp and theme
+  app/                  MaterialApp, theme, auth gate, temporary home
   core/                 Clock abstraction and shared helpers
-  features/             One folder per feature (added as features land)
+  features/
+    auth/
+      domain/           UserSession model, login form rules
+      data/             SessionRepository over shared_preferences
+      presentation/     AuthController, LoginScreen
 test/
   app/                  App smoke test
   core/                 Clock tests
+  features/auth/        Validator, repository, controller, and login screen tests
 pubspec.yaml            Package metadata and dependencies
 pubspec.lock            Resolved dependency versions
 ```
@@ -105,7 +113,7 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-The app currently opens on a placeholder screen with the project theme. Login is the next issue.
+The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that a temporary home screen shows the session and a log out button until the dashboard exists.
 
 ## Building the APK
 
@@ -158,11 +166,11 @@ Alternative considered: `drift` for typed SQL. Rejected because generated files 
 
 Problem: the challenge asks for a simple login with a persistent session and does not require accounts or sync.
 
-Decision: credentials are validated locally and the session is stored on the device.
+Decision: the login form validates the email format and a minimum password length. On success the session (email and sign-in time) is saved as JSON in `shared_preferences`. `AuthController` loads it on startup, and `AuthGate` picks the login screen or the app from that value.
 
-Reason: it satisfies the requirement without a network dependency in an otherwise offline app.
+Reason: it satisfies the requirement without a network dependency in an otherwise offline app, and the restore path is the same code on every launch.
 
-Trade-off: no real account system. Firebase Auth would add it but also add configuration and network handling that the challenge does not ask for.
+Trade-off: no real account system. Any credentials that pass the form rules sign in, and the password is never stored or checked. Firebase Auth would add real accounts but also configuration and network handling that the challenge does not ask for.
 
 ### Fasting timer model
 
@@ -189,7 +197,8 @@ Trade-off: a few more fields than a counter. In exchange the timer has no drift 
 
 ## Known Limitations
 
-- All product features are pending. Only the foundation exists.
+- Login is local only. There is no registration, password recovery, or password verification. The mockup links for those flows were left out on purpose.
+- Fasting, meals, history, and the chart are pending.
 - Final signing, release testing, and delivery links are pending.
 
 ## What I Would Improve With More Time
