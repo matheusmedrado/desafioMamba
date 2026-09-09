@@ -2,9 +2,9 @@
 
 ## Overview
 
-Flutter project for the Mamba Fast Tracker technical challenge: an intermittent fasting and calorie tracking app.
+Flutter app for the Mamba Fast Tracker technical challenge: intermittent fasting and calorie tracking, Android first, all data stored on the device.
 
-This repository currently contains the Android project scaffold and development workflow. It still runs Flutter's default counter demo. Product features have not been implemented.
+The repository currently has the app foundation: theme, composition root, clock abstraction, and the validation workflow. Product features are implemented issue by issue.
 
 ## Screenshots
 
@@ -28,19 +28,34 @@ All features above are pending. Work is tracked in [GitHub Issues](https://githu
 ## Tech Stack
 
 - Flutter 3.47.2 with Dart 3.13.2
-- Android target with the generated Kotlin and Gradle configuration
-- Java 17 for Android builds
-- `flutter_test` and `flutter_lints` from the Flutter template
-- `cupertino_icons` retained from the template
+- `flutter_riverpod` for state management and dependency injection
+- Manrope (SIL Open Font License) bundled as the app font
+- `flutter_test` and `flutter_lints`
+- Java 17, Android platform 36, Gradle from the generated Android project
 - GitHub Actions for validation
 
-TODO: Choose application dependencies during architecture planning.
+Planned for upcoming issues, listed here because the architecture already assumes them:
+
+- `shared_preferences` for session, selected protocol, and the active fasting session
+- `sqflite` for meals and completed fasting sessions
+- `flutter_local_notifications` and `timezone` for start and goal notifications
 
 ## Architecture
 
-Only the generated Flutter scaffold exists. No feature layers, persistence models, or state management approach have been added.
+Feature-first layout with a small shared core. Each feature keeps its own `domain`, `data`, and `presentation` code, and only creates the folders it needs.
 
-TODO: Document the agreed architecture and responsibility boundaries.
+Responsibilities:
+
+- `domain`: plain Dart models and calculations. No Flutter imports. This is where fasting time math lives so it can be unit tested with a fake clock.
+- `data`: repositories that own persistence for one kind of data.
+- `presentation`: Riverpod notifiers that act as view models, plus widgets that render state and forward user actions.
+
+Rules the code follows:
+
+- Persisted timestamps are the source of truth for the fasting timer. A periodic timer only refreshes the UI. Elapsed and remaining time are always computed from stored values plus the current clock, so the timer stays correct after backgrounding and after the process is killed.
+- Each durable piece of data has one repository that owns it.
+- The current time comes from an injected `Clock`, never from `DateTime.now()` inside business logic.
+- Navigation uses the plain `Navigator` with a bottom navigation shell. No routing package.
 
 ## Project Structure
 
@@ -50,8 +65,17 @@ TODO: Document the agreed architecture and responsibility boundaries.
   workflows/            Flutter validation
   pull_request_template.md
 android/                Android host and Gradle configuration
-lib/main.dart           Generated counter demo
-test/widget_test.dart   Generated counter smoke test
+assets/
+  fonts/                Manrope and its license
+  images/               Wordmark
+lib/
+  main.dart             Composition root: ProviderScope and app
+  app/                  MaterialApp and theme
+  core/                 Clock abstraction and shared helpers
+  features/             One folder per feature (added as features land)
+test/
+  app/                  App smoke test
+  core/                 Clock tests
 pubspec.yaml            Package metadata and dependencies
 pubspec.lock            Resolved dependency versions
 ```
@@ -81,7 +105,7 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-This currently launches the counter demo.
+The app currently opens on a placeholder screen with the project theme. Login is the next issue.
 
 ## Building the APK
 
@@ -102,28 +126,70 @@ flutter analyze
 flutter test
 ```
 
-The existing test checks the generated counter demo. There are no feature tests yet.
+Unit tests live in `test/` and mirror the `lib/` layout. Business logic is tested with a `FakeClock` so time based rules run against fixed dates.
 
 GitHub Actions runs these checks and `flutter build apk --release` on pull requests into `main` and pushes to `main`.
 
 ## Engineering Decisions
 
-- Android is the only generated platform because the challenge requires an APK or AAB.
-- CI pins Flutter 3.47.2, and the application lockfile is committed to keep dependency resolution repeatable.
-- The default demo and its test are retained as a working baseline.
-- Work follows issue, branch, implementation, tests, pull request, CI, and merge. `main` is the stable branch. Use focused branches and Conventional Commits.
+### State management: Riverpod
 
-TODO: Record architecture, persistence, timer, and library decisions after they are agreed.
+Problem: the app needs shared state (session, active fast, meals) that several screens read, and business logic that tests can drive without widgets.
+
+Decision: `flutter_riverpod` without code generation. Notifiers act as view models. Repositories and the clock are providers.
+
+Reason: providers double as dependency injection, so tests override the clock and repositories with fakes in one place. There is little boilerplate compared to Bloc, and the pattern is easy to explain.
+
+Trade-off: Riverpod is one more concept than `ChangeNotifier` with `provider`. The gain in testability is worth it for the timer logic.
+
+### Persistence: shared_preferences plus sqflite
+
+Problem: some data is a single record (session, selected protocol, active fast), some data is a growing list queried by day (meals, completed fasts).
+
+Decision: `shared_preferences` for single records stored as JSON, `sqflite` tables for meals and completed fasting sessions.
+
+Reason: key-value storage is the simplest fit for single records. SQLite makes daily totals and the weekly chart plain queries instead of in-memory filtering over JSON blobs. Neither needs code generation.
+
+Trade-off: two storage packages instead of one. Each repository owns exactly one of them, so the split stays clear.
+
+Alternative considered: `drift` for typed SQL. Rejected because generated files add explanation and setup cost that this scope does not need.
+
+### Authentication: local only
+
+Problem: the challenge asks for a simple login with a persistent session and does not require accounts or sync.
+
+Decision: credentials are validated locally and the session is stored on the device.
+
+Reason: it satisfies the requirement without a network dependency in an otherwise offline app.
+
+Trade-off: no real account system. Firebase Auth would add it but also add configuration and network handling that the challenge does not ask for.
+
+### Fasting timer model
+
+Problem: an in-memory counter drifts when Android suspends the app and is lost when the process is killed.
+
+Decision: persist `startedAt`, target duration, `pausedAt`, accumulated paused time, and status. Compute elapsed and remaining from those values and the clock on every refresh.
+
+Reason: the same calculation works while the app is open, after returning from background, and after a cold start. Reaching the target does not end the session on its own. The UI shows the goal as reached and the user ends the fast.
+
+Trade-off: a few more fields than a counter. In exchange the timer has no drift and needs no background service.
+
+### Other choices
+
+- Plain `Navigator` instead of a routing package. Three tabs and a handful of pushed screens do not justify one.
+- Manrope is bundled as an asset instead of fetched at runtime, so the app renders correctly offline and on first launch.
+- Android is the only generated platform because the challenge requires an APK or AAB.
+- CI pins Flutter 3.47.2, and the lockfile is committed to keep dependency resolution repeatable.
 
 ## Trade-offs
 
-The scaffold keeps Flutter's default code and configuration. It is easy to validate, but does not represent the product UI or final release configuration.
+- Local persistence only. Reinstalling the app clears all data. This matches the challenge scope, which does not ask for cloud sync.
+- The theme is dark only, following the approved mockups. A light theme is possible later since the design tokens exist for it.
+- The release build is still signed with the debug key. Final signing is handled in the release issue.
 
 ## Known Limitations
 
-- All challenge features are pending.
-- Persistence, authentication, and state management have not been selected.
-- Only the Android platform is generated.
+- All product features are pending. Only the foundation exists.
 - Final signing, release testing, and delivery links are pending.
 
 ## What I Would Improve With More Time
