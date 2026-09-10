@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/presentation/auth_controller.dart';
+import '../features/fasting/presentation/protocol_controller.dart';
+import '../features/fasting/presentation/protocol_select_screen.dart';
 import 'theme.dart';
 
 /// Temporary signed-in screen until the dashboard exists.
@@ -12,6 +14,7 @@ class PlaceholderHome extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
     final email = ref.watch(authControllerProvider).value?.email ?? '';
+    final protocol = ref.watch(selectedProtocolProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -34,15 +37,31 @@ class PlaceholderHome extends ConsumerWidget {
               Text('Signed in as', style: textTheme.labelMedium),
               const SizedBox(height: 4),
               Text(email, style: textTheme.titleMedium),
-              const Spacer(),
+              const SizedBox(height: 24),
+              Text('Your protocol', style: textTheme.labelMedium),
+              const SizedBox(height: 4),
+              Text(
+                '${protocol.name}  ${protocol.tag}',
+                style: textTheme.titleMedium,
+              ),
+              const SizedBox(height: 12),
               ElevatedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ProtocolSelectScreen(),
+                  ),
+                ),
+                child: const Text('Change protocol'),
+              ),
+              const Spacer(),
+              TextButton(
                 onPressed: () =>
                     ref.read(authControllerProvider.notifier).logout(),
                 child: const Text('Log out'),
               ),
               const SizedBox(height: 8),
               Text(
-                'Fasting and meals arrive in the next issues.',
+                'Fasting timer and meals arrive in the next issues.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodySmall?.copyWith(
                   color: MambaColors.textSecondary,
