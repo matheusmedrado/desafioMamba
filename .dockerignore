@@ -1,0 +1,27 @@
+# Version control and CI
+.git
+.github
+
+# Build output and tool caches
+build
+.dart_tool
+android/.gradle
+android/local.properties
+
+# Local development environment
+.dev-tools
+.idea
+*.iml
+tmp
+
+# Local notes and assistant files
+*.md
+.agents
+.claude
+.codex
+.lavish
+.ui-craft
+
+# Docker itself
+Dockerfile
+.dockerignore
