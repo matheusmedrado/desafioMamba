@@ -102,6 +102,8 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
                     ),
                     const SizedBox(height: 12),
                   ],
+                  const _SectionDivider(label: 'Or set your own'),
+                  const SizedBox(height: 12),
                   _ProtocolOption(
                     name: custom?.name ?? 'Custom',
                     tag: custom == null ? 'Custom' : 'Custom, tap to edit',
@@ -234,6 +236,30 @@ class _ProtocolOption extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Thin rule with a label, separating the presets from the custom option.
+class _SectionDivider extends StatelessWidget {
+  const _SectionDivider({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          const Expanded(child: Divider()),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(label, style: Theme.of(context).textTheme.labelSmall),
+          ),
+          const Expanded(child: Divider()),
+        ],
       ),
     );
   }
