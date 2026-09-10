@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/login_screen.dart';
-import 'placeholder_home.dart';
+import '../features/fasting/presentation/fasting_home_screen.dart';
 
 /// Picks the first screen from the persisted session.
 class AuthGate extends ConsumerWidget {
@@ -13,7 +13,7 @@ class AuthGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(authControllerProvider);
     return switch (session) {
-      AsyncData(:final value) when value != null => const PlaceholderHome(),
+      AsyncData(:final value) when value != null => const FastingHomeScreen(),
       AsyncData() || AsyncError() => const LoginScreen(),
       _ => const Scaffold(body: SizedBox.expand()),
     };

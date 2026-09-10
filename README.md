@@ -4,7 +4,7 @@
 
 Flutter app for the Mamba Fast Tracker technical challenge: intermittent fasting and calorie tracking, Android first, all data stored on the device.
 
-The repository currently has the app foundation and local login with a persistent session. Product features are implemented issue by issue.
+The repository currently has local login with a persistent session, fasting protocol selection, and a timestamp-based fasting timer. Product features are implemented issue by issue.
 
 ## Screenshots
 
@@ -16,10 +16,10 @@ Done:
 
 - Local login with a persistent session. The session is restored after closing and reopening the app.
 - Fasting protocols: 12:12, 16:8, 18:6, and a custom protocol with 8 to 23 fasting hours. The choice is stored locally.
+- Fasting timer with start, pause, resume, and manual end controls. Elapsed and remaining time are restored from persisted timestamps after backgrounding or restarting the app.
 
 Planned from the challenge specification:
 
-- Fasting timer that stays correct in the background and after restarting
 - Notifications when fasting starts and ends
 - Meal records with calories and automatic timestamps
 - Daily calorie and fasting totals with goal status
@@ -59,6 +59,7 @@ Rules the code follows:
 - Each durable piece of data has one repository that owns it.
 - The current time comes from an injected `Clock`, never from `DateTime.now()` inside business logic.
 - Navigation uses the plain `Navigator` with a bottom navigation shell. No routing package.
+- The fasting screen observes app lifecycle changes. It stops the display ticker when hidden and reloads the persisted session when the app resumes.
 
 ## Project Structure
 
@@ -73,7 +74,7 @@ assets/
   images/               Wordmark
 lib/
   main.dart             Composition root: ProviderScope and app
-  app/                  MaterialApp, theme, auth gate, temporary home
+  app/                  MaterialApp, theme, and auth gate
   core/                 Clock abstraction and shared helpers
   features/
     auth/
@@ -81,14 +82,14 @@ lib/
       data/             SessionRepository over shared_preferences
       presentation/     AuthController, LoginScreen
     fasting/
-      domain/           FastingProtocol presets, ProtocolSettings
-      data/             ProtocolRepository over shared_preferences
-      presentation/     ProtocolController, protocol selection and custom editor
+      domain/           FastingProtocol, ProtocolSettings, FastingSession
+      data/             ProtocolRepository and FastingRepository over shared_preferences
+      presentation/     Riverpod controllers, timer screen, protocol selection and custom editor
 test/
   app/                  App smoke test
   core/                 Clock tests
   features/auth/        Validator, repository, controller, and login screen tests
-  features/fasting/     Protocol model, controller persistence, and selection flow tests
+  features/fasting/     Protocol, timer, persistence, controller, and selection flow tests
 pubspec.yaml            Package metadata and dependencies
 pubspec.lock            Resolved dependency versions
 ```
@@ -118,7 +119,7 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that a temporary home screen shows the session, the selected protocol with a way to change it, and a log out button until the dashboard exists.
+The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the fasting screen shows the selected protocol, timer controls, and a way to change the protocol or log out.
 
 ## Building the APK
 
@@ -193,9 +194,9 @@ Trade-off: no real account system. Any credentials that pass the form rules sign
 
 Problem: an in-memory counter drifts when Android suspends the app and is lost when the process is killed.
 
-Decision: persist `startedAt`, target duration, `pausedAt`, accumulated paused time, and status. Compute elapsed and remaining from those values and the clock on every refresh.
+Decision: persist the protocol id, target duration, `startedAt`, `pausedAt`, accumulated paused time, `endedAt`, and lifecycle status. Compute elapsed and remaining from those values and the clock on every refresh.
 
-Reason: the same calculation works while the app is open, after returning from background, and after a cold start. Reaching the target does not end the session on its own. The UI shows the goal as reached and the user ends the fast.
+Reason: the same calculation works while the app is open, after returning from background, and after a cold start. Paused wall-clock time is excluded. Reaching the target does not end the session on its own. The UI shows the goal as reached and the user ends the fast.
 
 Trade-off: a few more fields than a counter. In exchange the timer has no drift and needs no background service.
 
@@ -217,7 +218,7 @@ Trade-off: a few more fields than a counter. In exchange the timer has no drift 
 ## Known Limitations
 
 - Login is local only. There is no registration, password recovery, or password verification. The mockup links for those flows were left out on purpose.
-- Fasting, meals, history, and the chart are pending.
+- Local notifications, meals, history, and the weekly chart are pending.
 - Final signing, release testing, and delivery links are pending.
 
 ## What I Would Improve With More Time

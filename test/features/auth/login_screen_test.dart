@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mamba_fast_tracker/app/app.dart';
-import 'package:mamba_fast_tracker/app/placeholder_home.dart';
 import 'package:mamba_fast_tracker/features/auth/presentation/login_screen.dart';
+import 'package:mamba_fast_tracker/features/fasting/presentation/fasting_home_screen.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
@@ -43,14 +43,14 @@ void main() {
     await tester.tap(find.text('Log in'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(PlaceholderHome), findsOneWidget);
+    expect(find.byType(FastingHomeScreen), findsOneWidget);
     expect(find.text('user@example.com'), findsOneWidget);
 
     // A new ProviderScope with the same storage behaves like a cold start.
     await tester.pumpWidget(const SizedBox());
     await pumpApp(tester);
 
-    expect(find.byType(PlaceholderHome), findsOneWidget);
+    expect(find.byType(FastingHomeScreen), findsOneWidget);
     expect(find.byType(LoginScreen), findsNothing);
   });
 }
