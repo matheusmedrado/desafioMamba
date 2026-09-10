@@ -123,6 +123,18 @@ flutter build apk --release
 
 Output: `build/app/outputs/flutter-apk/app-release.apk`.
 
+### With Docker
+
+The `Dockerfile` builds the same APK without a local Flutter, Java, or Android SDK setup. It pins Flutter 3.47.2, Android platform 36, build-tools 36.0.0, and the NDK the project uses, so the result matches CI.
+
+```bash
+docker build --target apk --output type=local,dest=build/docker .
+```
+
+Output: `build/docker/app-release.apk`.
+
+The first build downloads the toolchain and takes several minutes. Later builds reuse the cached toolchain layers and a Gradle cache mount, so only the app compiles again. Docker is only a build environment here. Running the app still needs an Android device or emulator.
+
 The template currently signs release builds with the debug key. This is suitable for checking the scaffold, but final release signing and delivery are still TODO.
 
 ## Testing
@@ -186,6 +198,7 @@ Trade-off: a few more fields than a counter. In exchange the timer has no drift 
 
 - Plain `Navigator` instead of a routing package. Three tabs and a handful of pushed screens do not justify one.
 - Manrope is bundled as an asset instead of fetched at runtime, so the app renders correctly offline and on first launch.
+- The Dockerfile installs the toolchain from the official Flutter and Android archives instead of a community image, so the Flutter version can be pinned to exactly what CI uses.
 - Android is the only generated platform because the challenge requires an APK or AAB.
 - CI pins Flutter 3.47.2, and the lockfile is committed to keep dependency resolution repeatable.
 
