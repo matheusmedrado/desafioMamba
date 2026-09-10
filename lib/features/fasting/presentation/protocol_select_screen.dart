@@ -79,7 +79,7 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
                 children: [
                   Text(
                     'A fasting window that fits your day. Change it whenever '
@@ -88,7 +88,7 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
                       color: MambaColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   for (final preset in FastingProtocol.presets) ...[
                     _ProtocolOption(
                       name: preset.name,
@@ -100,10 +100,10 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
                       semanticsLabel: '${preset.name}, ${preset.tag}',
                       onTap: () => setState(() => _selected = preset),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                   ],
                   const _SectionDivider(label: 'Or set your own'),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   _ProtocolOption(
                     name: custom?.name ?? 'Custom',
                     tag: custom == null ? 'Custom' : 'Custom, tap to edit',
@@ -187,7 +187,7 @@ class _ProtocolOption extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(MambaRadius.medium),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -250,7 +250,7 @@ class _SectionDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           const Expanded(child: Divider()),
