@@ -7,10 +7,10 @@ import 'custom_protocol_screen.dart';
 import 'protocol_controller.dart';
 import 'widgets/fasting_window_bar.dart';
 
-/// Pick one of the presets or open the custom editor.
+/// Pick one of the presets or define a custom protocol.
 ///
-/// Preset choices are saved when the user taps Save. A custom protocol is
-/// saved as soon as the editor returns, matching the mockup flow.
+/// Nothing is persisted until the user taps Save. The custom editor only
+/// returns the chosen hours and marks the custom option as selected.
 class ProtocolSelectScreen extends ConsumerStatefulWidget {
   const ProtocolSelectScreen({super.key});
 
@@ -20,7 +20,12 @@ class ProtocolSelectScreen extends ConsumerStatefulWidget {
 }
 
 class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
+  /// Selection made on this screen. Null means "whatever is saved".
   FastingProtocol? _selected;
+
+  /// Custom hours chosen in the editor during this visit, not yet saved.
+  FastingProtocol? _pendingCustom;
+
   var _saving = false;
 
   Future<void> _openCustom(FastingProtocol? current) async {
@@ -31,22 +36,21 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
       ),
     );
     if (hours == null || !mounted) return;
-    await _persist(
-      () => ref.read(protocolControllerProvider.notifier).useCustom(hours),
-    );
+    setState(() {
+      _pendingCustom = FastingProtocol.custom(hours);
+      _selected = _pendingCustom;
+    });
   }
 
   Future<void> _save(FastingProtocol protocol) async {
-    await _persist(
-      () =>
-          ref.read(protocolControllerProvider.notifier).selectPreset(protocol),
-    );
-  }
-
-  Future<void> _persist(Future<void> Function() action) async {
     setState(() => _saving = true);
     try {
-      await action();
+      final controller = ref.read(protocolControllerProvider.notifier);
+      if (protocol.isCustom) {
+        await controller.useCustom(protocol.fastingHours);
+      } else {
+        await controller.selectPreset(protocol);
+      }
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
       if (!mounted) return;
@@ -65,7 +69,7 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
         ref.watch(protocolControllerProvider).value ??
         ProtocolSettings.defaults;
     final selected = _selected ?? settings.selected;
-    final custom = settings.custom;
+    final custom = _pendingCustom ?? settings.custom;
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -87,15 +91,36 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
                   const SizedBox(height: 20),
                   for (final preset in FastingProtocol.presets) ...[
                     _ProtocolOption(
-                      protocol: preset,
+                      name: preset.name,
+                      tag: preset.tag,
+                      description: preset.description,
+                      fastingHours: preset.fastingHours,
                       selected: selected == preset,
+                      trailing: _CheckMark(selected: selected == preset),
+                      semanticsLabel: '${preset.name}, ${preset.tag}',
                       onTap: () => setState(() => _selected = preset),
                     ),
                     const SizedBox(height: 12),
                   ],
-                  _CustomOption(
-                    custom: custom,
+                  _ProtocolOption(
+                    name: custom?.name ?? 'Custom',
+                    tag: custom == null ? 'Custom' : 'Custom, tap to edit',
+                    description: custom == null
+                        ? 'Set your own fasting and eating hours.'
+                        : 'Your own hours.',
+                    fastingHours:
+                        custom?.fastingHours ??
+                        FastingProtocol.defaultCustomFastingHours,
                     selected: selected.isCustom,
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      color: selected.isCustom
+                          ? MambaColors.textPrimary
+                          : MambaColors.textSecondary,
+                    ),
+                    semanticsLabel: custom == null
+                        ? 'Custom protocol, set your own hours'
+                        : 'Custom protocol ${custom.name}, tap to edit',
                     onTap: () => _openCustom(custom),
                   ),
                 ],
@@ -108,9 +133,7 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
                 child: FilledButton(
-                  onPressed: _saving || selected.isCustom
-                      ? null
-                      : () => _save(selected),
+                  onPressed: _saving ? null : () => _save(selected),
                   child: Text(_saving ? 'Saving...' : 'Save protocol'),
                 ),
               ),
@@ -124,13 +147,23 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
 
 class _ProtocolOption extends StatelessWidget {
   const _ProtocolOption({
-    required this.protocol,
+    required this.name,
+    required this.tag,
+    required this.description,
+    required this.fastingHours,
     required this.selected,
+    required this.trailing,
+    required this.semanticsLabel,
     required this.onTap,
   });
 
-  final FastingProtocol protocol;
+  final String name;
+  final String tag;
+  final String description;
+  final int fastingHours;
   final bool selected;
+  final Widget trailing;
+  final String semanticsLabel;
   final VoidCallback onTap;
 
   @override
@@ -144,7 +177,7 @@ class _ProtocolOption extends StatelessWidget {
       inMutuallyExclusiveGroup: true,
       checked: selected,
       button: true,
-      label: '${protocol.name}, ${protocol.tag}',
+      label: semanticsLabel,
       child: Material(
         color: selected ? MambaColors.purpleDeep : MambaColors.surface,
         borderRadius: BorderRadius.circular(MambaRadius.medium),
@@ -159,7 +192,7 @@ class _ProtocolOption extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      protocol.name,
+                      name,
                       style: textTheme.headlineMedium?.copyWith(
                         fontSize: 34,
                         letterSpacing: -1,
@@ -172,22 +205,23 @@ class _ProtocolOption extends StatelessWidget {
                       const _BrandDot(),
                     ],
                     const SizedBox(width: 10),
-                    Text(
-                      protocol.tag,
-                      style: textTheme.labelSmall?.copyWith(color: secondary),
+                    Expanded(
+                      child: Text(
+                        tag,
+                        style: textTheme.labelSmall?.copyWith(color: secondary),
+                      ),
                     ),
-                    const Spacer(),
-                    _CheckMark(selected: selected),
+                    trailing,
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  protocol.description,
+                  description,
                   style: textTheme.bodySmall?.copyWith(color: secondary),
                 ),
                 const SizedBox(height: 12),
                 FastingWindowBar(
-                  fastingHours: protocol.fastingHours,
+                  fastingHours: fastingHours,
                   fillColor: selected
                       ? MambaColors.textPrimary
                       : MambaColors.purple,
@@ -196,87 +230,6 @@ class _ProtocolOption extends StatelessWidget {
                       : MambaColors.surfaceElevated,
                   eatingLabelColor: secondary,
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CustomOption extends StatelessWidget {
-  const _CustomOption({
-    required this.custom,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final FastingProtocol? custom;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final custom = this.custom;
-    final secondary = selected
-        ? const Color(0xFFE3D6EF)
-        : MambaColors.textSecondary;
-
-    return Semantics(
-      button: true,
-      label: custom == null
-          ? 'Custom protocol, set your own hours'
-          : 'Custom protocol ${custom.name}, tap to edit',
-      child: Material(
-        color: selected ? MambaColors.purpleDeep : MambaColors.surface,
-        borderRadius: BorderRadius.circular(MambaRadius.medium),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(MambaRadius.medium),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      custom?.name ?? 'Custom',
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    if (selected) ...[
-                      const SizedBox(width: 8),
-                      const _BrandDot(),
-                    ],
-                    const SizedBox(width: 10),
-                    Text(
-                      custom == null
-                          ? 'Set your own hours'
-                          : 'Custom, tap to edit',
-                      style: textTheme.labelSmall?.copyWith(color: secondary),
-                    ),
-                    const Spacer(),
-                    Icon(Icons.chevron_right, color: secondary),
-                  ],
-                ),
-                if (custom != null) ...[
-                  const SizedBox(height: 12),
-                  FastingWindowBar(
-                    fastingHours: custom.fastingHours,
-                    fillColor: selected
-                        ? MambaColors.textPrimary
-                        : MambaColors.purple,
-                    trackColor: selected
-                        ? MambaColors.purple.withValues(alpha: 0.35)
-                        : MambaColors.surfaceElevated,
-                    eatingLabelColor: secondary,
-                  ),
-                ],
               ],
             ),
           ),
