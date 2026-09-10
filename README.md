@@ -15,10 +15,10 @@ TODO: Add screenshots once the application UI exists.
 Done:
 
 - Local login with a persistent session. The session is restored after closing and reopening the app.
+- Fasting protocols: 12:12, 16:8, 18:6, and a custom protocol with 8 to 23 fasting hours. The choice is stored locally.
 
 Planned from the challenge specification:
 
-- Predefined and custom fasting protocols
 - Fasting timer that stays correct in the background and after restarting
 - Notifications when fasting starts and ends
 - Meal records with calories and automatic timestamps
@@ -80,10 +80,15 @@ lib/
       domain/           UserSession model, login form rules
       data/             SessionRepository over shared_preferences
       presentation/     AuthController, LoginScreen
+    fasting/
+      domain/           FastingProtocol presets, ProtocolSettings
+      data/             ProtocolRepository over shared_preferences
+      presentation/     ProtocolController, protocol selection and custom editor
 test/
   app/                  App smoke test
   core/                 Clock tests
   features/auth/        Validator, repository, controller, and login screen tests
+  features/fasting/     Protocol model, controller persistence, and selection flow tests
 pubspec.yaml            Package metadata and dependencies
 pubspec.lock            Resolved dependency versions
 ```
@@ -113,7 +118,7 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that a temporary home screen shows the session and a log out button until the dashboard exists.
+The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that a temporary home screen shows the session, the selected protocol with a way to change it, and a log out button until the dashboard exists.
 
 ## Building the APK
 
@@ -196,6 +201,7 @@ Trade-off: a few more fields than a counter. In exchange the timer has no drift 
 
 ### Other choices
 
+- The protocol choice is one small record: the selected protocol id plus the custom fasting hours. Custom hours are kept when a preset is selected again, so the custom card stays editable. Presets are constants in code, since they never change and there is nothing to store for them.
 - Plain `Navigator` instead of a routing package. Three tabs and a handful of pushed screens do not justify one.
 - Manrope is bundled as an asset instead of fetched at runtime, so the app renders correctly offline and on first launch.
 - The Dockerfile installs the toolchain from the official Flutter and Android archives instead of a community image, so the Flutter version can be pinned to exactly what CI uses.
