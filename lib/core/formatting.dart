@@ -1,3 +1,27 @@
+import 'local_day.dart';
+
+/// Greeting for the local time of day.
+String formatGreeting(DateTime time) {
+  final hour = time.toLocal().hour;
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/// "Today", "Tomorrow", or "Yesterday" relative to [now], else the day label.
+String formatRelativeDay(DateTime time, DateTime now) {
+  final today = localDayBounds(now).start;
+  // Rounded because a day with a daylight saving change is 23 or 25 hours.
+  final days = (localDayBounds(time).start.difference(today).inHours / 24)
+      .round();
+  return switch (days) {
+    0 => 'Today',
+    1 => 'Tomorrow',
+    -1 => 'Yesterday',
+    _ => formatDayLabel(time),
+  };
+}
+
 const _weekdays = [
   'Monday',
   'Tuesday',

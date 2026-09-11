@@ -7,6 +7,22 @@ void main() {
     expect(formatDayLabel(DateTime(2026, 1, 31)), 'Saturday, 31 Jan');
   });
 
+  test('formatGreeting follows the local hour', () {
+    expect(formatGreeting(DateTime(2026, 9, 11, 5)), 'Good morning');
+    expect(formatGreeting(DateTime(2026, 9, 11, 12)), 'Good afternoon');
+    expect(formatGreeting(DateTime(2026, 9, 11, 17, 59)), 'Good afternoon');
+    expect(formatGreeting(DateTime(2026, 9, 11, 18)), 'Good evening');
+  });
+
+  test('formatRelativeDay names nearby days and falls back to the label', () {
+    final now = DateTime(2026, 9, 11, 23);
+
+    expect(formatRelativeDay(DateTime(2026, 9, 11, 1), now), 'Today');
+    expect(formatRelativeDay(DateTime(2026, 9, 12, 6, 21), now), 'Tomorrow');
+    expect(formatRelativeDay(DateTime(2026, 9, 10, 20), now), 'Yesterday');
+    expect(formatRelativeDay(DateTime(2026, 9, 8), now), 'Tuesday, 8 Sep');
+  });
+
   test('formatDayRange names the month once when it does not change', () {
     expect(
       formatDayRange(DateTime(2026, 9, 2), DateTime(2026, 9, 8)),

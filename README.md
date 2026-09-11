@@ -14,16 +14,16 @@ TODO: Add screenshots once the application UI exists.
 
 Done:
 
-- Local login with a persistent session. The session is restored after closing and reopening the app.
+- Local login with a persistent session. The session is restored after closing and reopening the app. The settings button on Today shows the signed-in account and logs out.
 - Fasting protocols: 12:12, 16:8, 18:6, and a custom protocol with 8 to 23 fasting hours. The choice is stored locally.
-- Fasting timer with start, pause, resume, and manual end controls. Elapsed and remaining time are restored from persisted timestamps after backgrounding or restarting the app.
+- Fasting timer with start, pause, resume, and manual end controls. Elapsed and remaining time are restored from persisted timestamps after backgrounding or restarting the app. Today shows the fast on a winding fasting route.
 - Local notifications when a fast starts and when its planned fasting goal is reached. The scheduled notification is restored, rescheduled, or canceled with the active session.
 - Meal tracking: add, edit, and delete today's meals with a name and calories. The meal time is recorded automatically, and meals are stored in SQLite so they remain after restarting the app.
 - Daily summary on Today: calories against a daily calorie limit, fasting time for the day, and whether the day is within goal. Ended fasts are stored in SQLite, so the totals remain after restarting the app.
 - History: previous days with records, newest first, grouped into this week, last week, and earlier. Each day opens a read-only summary with its fasts, meals, and goal status.
 - Weekly chart: fasting hours for each of the last seven complete days against the fasting goal, with the average fast, the number of days within goal, and the best day.
 
-Release preparation is tracked in [GitHub Issues](https://github.com/matheusmedrado/desafioMamba/issues).
+UI polish and release preparation are tracked in [GitHub Issues](https://github.com/matheusmedrado/desafioMamba/issues).
 
 ## Tech Stack
 
@@ -33,6 +33,7 @@ Release preparation is tracked in [GitHub Issues](https://github.com/matheusmedr
 - `sqflite` for meals and ended fasts, with `path` to build the database file path
 - `flutter_local_notifications` for Android start and fasting-goal notifications
 - `timezone` and `flutter_timezone` for scheduling in the device's local timezone
+- `flutter_svg` to draw the app's stroke icons from SVG paths
 - Manrope (SIL Open Font License) bundled as the app font
 - `flutter_test` and `flutter_lints`
 - `sqflite_common_ffi` so repository tests run against real SQLite on the development machine and in CI
@@ -61,6 +62,7 @@ Rules the code follows:
 - A fast is copied to SQLite when it ends. The copy is keyed by the fast id and repeated whenever the current fast loads, so it also recovers an app closed between the two writes.
 - The daily summary is calculated in plain Dart from today's meals, the fasts that ended today, the current fast, and the calorie limit. It recalculates on every timer tick, so a running fast's time stays current.
 - History uses the same daily goal rule as Today. It groups earlier meals and ended fasts by local day in plain Dart, and each day is summarized with `DaySummary`. The weekly summary is built from those same days.
+- The fasting route on Today is drawn with `CustomPainter`. Its progress comes from the same persisted session as the timer.
 
 ## Project Structure
 
@@ -75,17 +77,17 @@ assets/
   images/               Wordmark
 lib/
   main.dart             Composition root: ProviderScope and app
-  app/                  MaterialApp, theme, auth gate, and tab shell
+  app/                  MaterialApp, theme, auth gate, tab shell, brand header, and icons
   core/                 Clock, SQLite database, local day boundaries, and formatting helpers
   features/
     auth/
       domain/           UserSession model, login form rules
       data/             SessionRepository over shared_preferences
-      presentation/     AuthController, LoginScreen
+      presentation/     AuthController, LoginScreen, settings sheet
     fasting/
       domain/           FastingProtocol, ProtocolSettings, FastingSession
       data/             ProtocolRepository, FastingRepository, CompletedFastRepository, and notification service
-      presentation/     Riverpod controllers, timer screen, protocol selection and custom editor
+      presentation/     Riverpod controllers, Today screen with the fasting route, protocol selection and custom editor
     meals/
       domain/           Meal model, calorie total, meal form rules
       data/             MealRepository over sqflite
@@ -98,10 +100,10 @@ lib/
       domain/           HistoryDay grouping by local day, WeekSummary
       presentation/     HistoryController, History screen with Days and Week views, day summary screen, weekly chart
 test/
-  app/                  App smoke test
+  app/                  App smoke test and icons
   core/                 Clock, database upgrade, local day, and formatting tests
-  features/auth/        Validator, repository, controller, and login screen tests
-  features/fasting/     Protocol, timer, persistence, completed fasts, notification, controller, and selection flow tests
+  features/auth/        Validator, repository, controller, login, and logout tests
+  features/fasting/     Protocol, timer, persistence, completed fasts, notification, controller, fasting route, and selection flow tests
   features/meals/       Validator, SQLite repository, controller, and Meals screen tests
   features/dashboard/   Goal rule, calorie limit, summary provider, and Your day section tests
   features/history/     Day grouping, week summary, controller, History screen, and Week view tests
@@ -134,7 +136,7 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the Today tab shows the selected protocol, timer controls, and a summary of the day with calories, fasting time, and goal status. Tap Calories in that summary to change the daily calorie limit. The Meals tab lists today's meals and adds, edits, or deletes them. The History tab lists previous days in the Days view and shows the weekly fasting chart in the Week view. Android 13 and newer ask for notification permission when the first fast starts.
+The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the Today tab shows the next fast or the running fast on the fasting route, with start, pause, resume, and end controls, and a summary of the day with calories, fasting time, and goal status. Tap Calories in that summary to change the daily calorie limit, and use the settings button to log out. The Meals tab lists today's meals and adds, edits, or deletes them. The History tab lists previous days in the Days view and shows the weekly fasting chart in the Week view. Android 13 and newer ask for notification permission when the first fast starts.
 
 ## Building the APK
 
@@ -241,7 +243,7 @@ Problem: the specification asks whether the user is within the goal, but it does
 
 Decision: a day is within goal when its calories are at or under a daily calorie limit and a fast credited to that day reached its own target. The limit is 2,000 kcal by default and can be set from 500 to 5,000 on Today. A fast is credited to the local calendar day it ends, and the fast that has not ended counts toward today. Today reads "In progress" until the result is known. It becomes "Outside" as soon as calories go over the limit, or when the day's fast ended short of its target and no fast is still open. Ended fasts are copied to a `fasting_sessions` table (database version 2), so starting a new fast no longer replaces the previous one.
 
-Reason: every fast already has a target, and the mockups judge days by it ("Goal reached", "Ended early"). The calorie limit adds the calorie side of the goal. Crediting a fast to the day it ends is exact with the stored fields and matches the day details mockup, which shows a fast that started the evening before. Each fast is compared with its own target, so changing the protocol later does not change past results.
+Reason: every fast already has a target, so judging a day by whether a fast reached it needs no new setting. The calorie limit adds the calorie side of the goal. Crediting a fast to the day it ends is exact with the stored fields, and a fast that starts in the evening naturally belongs to the next day. Each fast is compared with its own target, so changing the protocol later does not change past results.
 
 Trade-off: a fast that crosses midnight adds no time to the day it started. Splitting fasting time at midnight was considered, but it would need the start and end of every pause, and only the total paused time is stored. The calorie limit is one current value rather than a value saved per day.
 
@@ -261,9 +263,19 @@ Problem: the challenge asks for a simple weekly chart of calories or fasting tim
 
 Decision: the Week view in History charts fasting hours for the seven complete days before today, built from standard widgets (`Row`, `Stack`, and sized `Container` bars) with no chart package. Each bar is colored by whether a fast that day reached its own target. A dashed line marks the goal of the currently selected protocol. The "days within goal" count uses the full daily goal from `DaySummary`, and the average is per fast. The Days view shows the same count and average at the top.
 
-Reason: fasting time is the app's main metric and matches the mockup. Seven fixed bars need only proportional heights, so a chart package or custom painting would add code and a dependency without a real benefit. `WeekSummary` is built from the History days, so the chart and the list always agree.
+Reason: fasting time is the app's main metric. Seven fixed bars need only proportional heights, so a chart package or custom painting would add code and a dependency without a real benefit. `WeekSummary` is built from the History days, so the chart and the list always agree.
 
 Trade-off: no touch interaction, animation, or other time ranges. The goal line uses the current protocol, while bar colors use the target of each day's fasts, so after a protocol change the two can differ.
+
+### UI polish
+
+Problem: once the core behavior was reasonably stable (timer, persistence, meals, daily summary, and history), the interface still used generic layouts and had little personality.
+
+Decision: start a polish pass on the interface, beginning with the navigation and the Today screen. Today now leads with a large timer and a winding fasting route drawn with `CustomPainter`, where a small yellow head follows the route as the fast progresses. Icons are drawn with `flutter_svg` from SVG paths so they keep the same stroke style everywhere. The navigation marks the active tab with a thin purple bar instead of a pill, and logout moved into a settings sheet opened from the header. The remaining screens are polished in follow-up issues.
+
+Reason: behavior came first, so the polish could build on screens and states that already worked and were tested. The route and the icons give the app a recognizable look, and drawing them from fixed geometry keeps them consistent at every size. `flutter_svg` covers SVG rendering, which Flutter does not provide.
+
+Trade-off: one more package, and the Today screen has more custom layout to maintain. The timer logic did not change: the route and the numbers still come from the persisted session and the clock.
 
 ### Other choices
 
@@ -277,12 +289,12 @@ Trade-off: no touch interaction, animation, or other time ranges. The goal line 
 ## Trade-offs
 
 - Local persistence only. Reinstalling the app clears all data. This matches the challenge scope, which does not ask for cloud sync.
-- The theme is dark only, following the approved mockups. A light theme is possible later since the design tokens exist for it.
+- The theme is dark only. A light theme is possible later since the color tokens exist for it.
 - The release build is still signed with the debug key. Final signing is handled in the release issue.
 
 ## Known Limitations
 
-- Login is local only. There is no registration, password recovery, or password verification. The mockup links for those flows were left out on purpose.
+- Login is local only. There is no registration, password recovery, or password verification. Those flows were left out on purpose.
 - Android may delay inexact notifications because of Doze mode or vendor battery-management rules. Notification permission can also be denied.
 - Meals from earlier days are read-only. They can be reviewed in History but not edited.
 - A fast counts on the day it ends. A fast that crosses midnight adds no time to the day it started.
@@ -291,6 +303,7 @@ Trade-off: no touch interaction, animation, or other time ranges. The goal line 
 - History loads all earlier records at once and does not page.
 - If the app stays in the foreground past midnight, History and the daily summary update the next time the app returns to the foreground.
 - The weekly chart covers only the last seven complete days. Its goal line follows the current protocol.
+- Ending a fast has no confirmation and no completion screen yet, and Meals, History, the Week view, protocol selection, and login are still waiting for the UI polish pass. Both are tracked in issues #26 and #27.
 - Final signing, release testing, and delivery links are pending.
 
 ## What I Would Improve With More Time
