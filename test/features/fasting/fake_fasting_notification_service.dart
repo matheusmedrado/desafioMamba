@@ -23,3 +23,16 @@ class RecordingFastingNotificationService
     syncCalls.add(RecordedNotificationSync(session, now));
   }
 }
+
+/// Simulates a device where the notification plugin cannot be used.
+class FailingFastingNotificationService implements FastingNotificationService {
+  @override
+  Future<void> showFastStarted() async {
+    throw StateError('Notifications are unavailable.');
+  }
+
+  @override
+  Future<void> sync(FastingSession? session, DateTime now) async {
+    throw StateError('Notifications are unavailable.');
+  }
+}

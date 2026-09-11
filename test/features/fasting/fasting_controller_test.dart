@@ -18,7 +18,7 @@ void main() {
 
   ProviderContainer newContainer(
     FakeClock clock, {
-    RecordingFastingNotificationService? notifications,
+    FastingNotificationService? notifications,
   }) {
     final container = ProviderContainer(
       overrides: [
@@ -157,5 +157,30 @@ void main() {
 
     expect(notifications.syncCalls.last.session, isNull);
     expect(container.read(fastingControllerProvider).value, isNull);
+  });
+
+  test('notification failures do not block the fasting timer', () async {
+    final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
+    final container = newContainer(
+      clock,
+      notifications: FailingFastingNotificationService(),
+    );
+    final controller = container.read(fastingControllerProvider.notifier);
+
+    expect(await container.read(fastingControllerProvider.future), isNull);
+    await controller.start();
+    expect(
+      container.read(fastingControllerProvider).value?.status,
+      FastingStatus.running,
+    );
+
+    clock.advance(const Duration(hours: 1));
+    await controller.pause();
+    final paused = container.read(fastingControllerProvider).value!;
+    expect(paused.status, FastingStatus.paused);
+    expect(paused.elapsedAt(clock.now()), const Duration(hours: 1));
+
+    await controller.restore();
+    expect(container.read(fastingControllerProvider).value, paused);
   });
 }

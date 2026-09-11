@@ -212,7 +212,7 @@ Decision: use `flutter_local_notifications` with `timezone`. Show a start notifi
 
 Reason: the persisted session already contains the target timestamp inputs. Rebuilding the notification projection from that state keeps pause, resume, end, and restore idempotent. `flutter_timezone` sets the timezone used by the schedule while persisted timestamps remain UTC.
 
-Trade-off: Android uses inexact alarms, so delivery can be delayed by the OS. Notification timing is only a reminder; timer calculations do not depend on it.
+Trade-off: Android uses inexact alarms, so delivery can be delayed by the OS. Notification timing is only a reminder; timer calculations do not depend on it. A failed notification call is logged and skipped, so it cannot block loading or changing a fast. The next transition or restore synchronizes again.
 
 ### Other choices
 
