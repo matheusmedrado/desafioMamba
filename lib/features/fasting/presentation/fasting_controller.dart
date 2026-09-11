@@ -125,7 +125,9 @@ class FastingController extends AsyncNotifier<FastingSession?> {
   }
 }
 
+/// Auto-disposed so the ticker stops when no screen shows the timer, such as
+/// after logout. The next build reloads the session from storage.
 final fastingControllerProvider =
-    AsyncNotifierProvider<FastingController, FastingSession?>(
+    AsyncNotifierProvider.autoDispose<FastingController, FastingSession?>(
       FastingController.new,
     );

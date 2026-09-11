@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mamba_fast_tracker/app/theme.dart';
 import 'package:mamba_fast_tracker/core/clock.dart';
+import 'package:mamba_fast_tracker/features/fasting/presentation/fasting_controller.dart';
 import 'package:mamba_fast_tracker/features/fasting/presentation/fasting_home_screen.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
@@ -102,5 +103,27 @@ void main() {
 
     await tester.tap(find.text('End fast'));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('removing the timer screen disposes the running ticker', (
+    tester,
+  ) async {
+    final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
+    final container = await pumpFastingScreen(tester, clock);
+
+    await tester.tap(find.text('Start fast'));
+    await tester.pumpAndSettle();
+    expect(container.exists(fastingControllerProvider), isTrue);
+
+    // Logout replaces the timer screen while the fast is still running.
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: SizedBox()),
+      ),
+    );
+    await tester.pump();
+
+    expect(container.exists(fastingControllerProvider), isFalse);
   });
 }

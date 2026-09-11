@@ -17,6 +17,8 @@ void main() {
       overrides: [clockProvider.overrideWithValue(clock)],
     );
     addTearDown(container.dispose);
+    // The provider is auto-disposed. Keep it alive like the timer screen does.
+    container.listen(fastingControllerProvider, (_, _) {});
     return container;
   }
 
