@@ -3,15 +3,17 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database.dart';
 import '../../../core/local_day.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../domain/meal.dart';
 
-/// Owns persisted meals.
+/// Owns the persisted meals of one user.
 class MealRepository {
-  MealRepository(this._database);
+  MealRepository(this._database, this._userId);
 
   static const _table = 'meals';
 
   final Database _database;
+  final String _userId;
 
   /// Meals eaten during the local calendar day that contains [day], oldest
   /// first.
@@ -19,8 +21,9 @@ class MealRepository {
     final bounds = localDayBounds(day);
     final rows = await _database.query(
       _table,
-      where: 'eaten_at >= ? AND eaten_at < ?',
+      where: 'user_id = ? AND eaten_at >= ? AND eaten_at < ?',
       whereArgs: [
+        _userId,
         bounds.start.millisecondsSinceEpoch,
         bounds.end.millisecondsSinceEpoch,
       ],
@@ -33,8 +36,8 @@ class MealRepository {
   Future<List<Meal>> mealsBefore(DateTime day) async {
     final rows = await _database.query(
       _table,
-      where: 'eaten_at < ?',
-      whereArgs: [localDayBounds(day).start.millisecondsSinceEpoch],
+      where: 'user_id = ? AND eaten_at < ?',
+      whereArgs: [_userId, localDayBounds(day).start.millisecondsSinceEpoch],
       orderBy: 'eaten_at, id',
     );
     return rows.map(_fromRow).toList();
@@ -46,6 +49,7 @@ class MealRepository {
     required DateTime eatenAt,
   }) async {
     final id = await _database.insert(_table, {
+      'user_id': _userId,
       'name': name,
       'calories': calories,
       'eaten_at': eatenAt.millisecondsSinceEpoch,
@@ -58,8 +62,8 @@ class MealRepository {
     final count = await _database.update(
       _table,
       {'name': meal.name, 'calories': meal.calories},
-      where: 'id = ?',
-      whereArgs: [meal.id],
+      where: 'id = ? AND user_id = ?',
+      whereArgs: [meal.id, _userId],
     );
     if (count == 0) {
       throw StateError('Meal ${meal.id} no longer exists.');
@@ -67,7 +71,11 @@ class MealRepository {
   }
 
   Future<void> delete(int id) async {
-    await _database.delete(_table, where: 'id = ?', whereArgs: [id]);
+    await _database.delete(
+      _table,
+      where: 'id = ? AND user_id = ?',
+      whereArgs: [id, _userId],
+    );
   }
 
   static Meal _fromRow(Map<String, Object?> row) {
@@ -84,5 +92,8 @@ class MealRepository {
 }
 
 final mealRepositoryProvider = FutureProvider<MealRepository>((ref) async {
-  return MealRepository(await ref.watch(databaseProvider.future));
+  return MealRepository(
+    await ref.watch(userDatabaseProvider.future),
+    ref.watch(currentUserIdProvider),
+  );
 });

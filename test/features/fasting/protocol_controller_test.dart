@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mamba_fast_tracker/features/auth/presentation/auth_controller.dart';
 import 'package:mamba_fast_tracker/features/fasting/domain/fasting_protocol.dart';
 import 'package:mamba_fast_tracker/features/fasting/presentation/protocol_controller.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
@@ -7,7 +8,9 @@ import 'package:shared_preferences_platform_interface/shared_preferences_async_p
 
 void main() {
   ProviderContainer newContainer() {
-    final container = ProviderContainer();
+    final container = ProviderContainer(
+      overrides: [currentUserIdProvider.overrideWithValue('')],
+    );
     addTearDown(container.dispose);
     return container;
   }

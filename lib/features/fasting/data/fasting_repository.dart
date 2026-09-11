@@ -4,18 +4,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/preferences.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../domain/fasting_session.dart';
 
-/// Owns the persisted current fasting session.
+/// Owns the persisted current fasting session of one user.
 class FastingRepository {
-  FastingRepository(this._prefs);
+  FastingRepository(this._prefs, {this.userId = ''});
 
-  static const _key = 'fasting.active_session';
+  static const baseKey = 'fasting.active_session';
 
   final SharedPreferencesAsync _prefs;
+  final String userId;
+
+  String get _key => userKey(baseKey, userId);
 
   Future<FastingSession?> load() async {
-    final raw = await _prefs.getString(_key);
+    final raw = await _read();
     if (raw == null) return null;
 
     try {
@@ -37,8 +41,22 @@ class FastingRepository {
   }
 
   Future<void> clear() => _prefs.remove(_key);
+
+  Future<String?> _read() async {
+    final raw = await _prefs.getString(_key);
+    if (raw != null || userId.isEmpty) return raw;
+
+    final savedBeforeAccounts = await _prefs.getString(baseKey);
+    if (savedBeforeAccounts == null) return null;
+    await _prefs.setString(_key, savedBeforeAccounts);
+    await _prefs.remove(baseKey);
+    return savedBeforeAccounts;
+  }
 }
 
 final fastingRepositoryProvider = Provider<FastingRepository>(
-  (ref) => FastingRepository(ref.watch(sharedPreferencesProvider)),
+  (ref) => FastingRepository(
+    ref.watch(sharedPreferencesProvider),
+    userId: ref.watch(currentUserIdProvider),
+  ),
 );

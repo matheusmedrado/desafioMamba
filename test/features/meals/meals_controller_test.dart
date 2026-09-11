@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mamba_fast_tracker/core/clock.dart';
 import 'package:mamba_fast_tracker/core/database.dart';
+import 'package:mamba_fast_tracker/features/auth/presentation/auth_controller.dart';
 import 'package:mamba_fast_tracker/features/meals/presentation/meals_controller.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -19,6 +20,7 @@ void main() {
   ProviderContainer newContainer(FakeClock clock) {
     final container = ProviderContainer(
       overrides: [
+        currentUserIdProvider.overrideWithValue(''),
         clockProvider.overrideWithValue(clock),
         databaseProvider.overrideWith((ref) => database),
       ],

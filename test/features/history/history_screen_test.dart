@@ -5,6 +5,7 @@ import 'package:mamba_fast_tracker/app/home_shell.dart';
 import 'package:mamba_fast_tracker/app/theme.dart';
 import 'package:mamba_fast_tracker/core/clock.dart';
 import 'package:mamba_fast_tracker/core/database.dart';
+import 'package:mamba_fast_tracker/features/auth/presentation/auth_controller.dart';
 import 'package:mamba_fast_tracker/features/fasting/data/completed_fast_repository.dart';
 import 'package:mamba_fast_tracker/features/fasting/data/fasting_notification_service.dart';
 import 'package:mamba_fast_tracker/features/fasting/domain/fasting_session.dart';
@@ -36,6 +37,7 @@ void main() {
   Future<void> pump(WidgetTester tester, Widget home) async {
     final container = ProviderContainer(
       overrides: [
+        currentUserIdProvider.overrideWithValue(''),
         clockProvider.overrideWithValue(FakeClock(DateTime(2026, 9, 10, 18))),
         databaseProvider.overrideWith((ref) => database),
         fastingNotificationServiceProvider.overrideWithValue(
@@ -57,15 +59,17 @@ void main() {
   testWidgets('today is not listed, so a new user sees the empty state', (
     tester,
   ) async {
-    await MealRepository(database)
-        .add(name: 'Toast', calories: 300, eatenAt: DateTime(2026, 9, 10, 8));
+    await MealRepository(
+      database,
+      '',
+    ).add(name: 'Toast', calories: 300, eatenAt: DateTime(2026, 9, 10, 8));
     await pump(tester, const HistoryScreen());
 
     expect(find.text('Nothing here yet'), findsOneWidget);
   });
 
   testWidgets('lists previous days and opens a day summary', (tester) async {
-    final meals = MealRepository(database);
+    final meals = MealRepository(database, '');
     await meals.add(
       name: 'Pasta',
       calories: 1800,
@@ -76,7 +80,7 @@ void main() {
       calories: 2500,
       eatenAt: DateTime(2026, 9, 1, 19),
     );
-    await CompletedFastRepository(database).save(
+    await CompletedFastRepository(database, '').save(
       FastingSession.start(
         id: 'fast-1',
         protocolId: '16:8',

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/mamba_icon.dart';
+import '../../fasting/data/fasting_notification_service.dart';
 import 'auth_controller.dart';
 
 Future<void> showSettingsSheet(BuildContext context) {
@@ -38,8 +39,13 @@ class SettingsSheet extends ConsumerWidget {
             ElevatedButton.icon(
               onPressed: () {
                 final auth = ref.read(authControllerProvider.notifier);
+                final notifications = ref.read(
+                  fastingNotificationServiceProvider,
+                );
                 Navigator.of(context).pop();
-                unawaited(auth.signOut());
+                unawaited(
+                  auth.signOut().then((_) => notifications.cancelAll()),
+                );
               },
               icon: const MambaIcon(MambaIcons.logOut, size: 20),
               label: const Text('Log out'),

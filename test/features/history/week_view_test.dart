@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mamba_fast_tracker/app/theme.dart';
 import 'package:mamba_fast_tracker/core/clock.dart';
 import 'package:mamba_fast_tracker/core/database.dart';
+import 'package:mamba_fast_tracker/features/auth/presentation/auth_controller.dart';
 import 'package:mamba_fast_tracker/features/fasting/data/completed_fast_repository.dart';
 import 'package:mamba_fast_tracker/features/fasting/domain/fasting_session.dart';
 import 'package:mamba_fast_tracker/features/history/presentation/history_screen.dart';
@@ -43,9 +44,11 @@ void main() {
   ) async {
     final semantics = tester.ensureSemantics();
 
-    await MealRepository(database)
-        .add(name: 'Pasta', calories: 1800, eatenAt: DateTime(2026, 9, 9, 13));
-    final fasts = CompletedFastRepository(database);
+    await MealRepository(
+      database,
+      '',
+    ).add(name: 'Pasta', calories: 1800, eatenAt: DateTime(2026, 9, 9, 13));
+    final fasts = CompletedFastRepository(database, '');
     await fasts.save(
       endedFast(
         'within',
@@ -59,6 +62,7 @@ void main() {
 
     final container = ProviderContainer(
       overrides: [
+        currentUserIdProvider.overrideWithValue(''),
         clockProvider.overrideWithValue(FakeClock(DateTime(2026, 9, 10, 18))),
         databaseProvider.overrideWith((ref) => database),
       ],

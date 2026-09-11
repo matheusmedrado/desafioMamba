@@ -5,6 +5,7 @@ import 'package:mamba_fast_tracker/app/home_shell.dart';
 import 'package:mamba_fast_tracker/app/theme.dart';
 import 'package:mamba_fast_tracker/core/clock.dart';
 import 'package:mamba_fast_tracker/core/database.dart';
+import 'package:mamba_fast_tracker/features/auth/presentation/auth_controller.dart';
 import 'package:mamba_fast_tracker/features/fasting/data/fasting_notification_service.dart';
 import 'package:mamba_fast_tracker/features/meals/presentation/meals_screen.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
@@ -34,6 +35,7 @@ void main() {
   Future<void> pump(WidgetTester tester, Widget home, FakeClock clock) async {
     final container = ProviderContainer(
       overrides: [
+        currentUserIdProvider.overrideWithValue(''),
         clockProvider.overrideWithValue(clock),
         databaseProvider.overrideWith((ref) => database),
         fastingNotificationServiceProvider.overrideWithValue(

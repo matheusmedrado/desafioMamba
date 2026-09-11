@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mamba_fast_tracker/app/theme.dart';
+import 'package:mamba_fast_tracker/features/auth/presentation/auth_controller.dart';
 import 'package:mamba_fast_tracker/features/fasting/domain/fasting_protocol.dart';
 import 'package:mamba_fast_tracker/features/fasting/presentation/protocol_controller.dart';
 import 'package:mamba_fast_tracker/features/fasting/presentation/protocol_select_screen.dart';
@@ -17,7 +18,9 @@ void main() {
   });
 
   Future<ProviderContainer> pumpScreen(WidgetTester tester) async {
-    final container = ProviderContainer();
+    final container = ProviderContainer(
+      overrides: [currentUserIdProvider.overrideWithValue('')],
+    );
     addTearDown(container.dispose);
     await tester.pumpWidget(
       UncontrolledProviderScope(

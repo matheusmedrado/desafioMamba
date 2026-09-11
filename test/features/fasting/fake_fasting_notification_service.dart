@@ -11,6 +11,7 @@ class RecordedNotificationSync {
 class RecordingFastingNotificationService
     implements FastingNotificationService {
   var startedCount = 0;
+  var cancelAllCount = 0;
   final syncCalls = <RecordedNotificationSync>[];
 
   @override
@@ -21,6 +22,11 @@ class RecordingFastingNotificationService
   @override
   Future<void> sync(FastingSession? session, DateTime now) async {
     syncCalls.add(RecordedNotificationSync(session, now));
+  }
+
+  @override
+  Future<void> cancelAll() async {
+    cancelAllCount++;
   }
 }
 
@@ -33,6 +39,11 @@ class FailingFastingNotificationService implements FastingNotificationService {
 
   @override
   Future<void> sync(FastingSession? session, DateTime now) async {
+    throw StateError('Notifications are unavailable.');
+  }
+
+  @override
+  Future<void> cancelAll() async {
     throw StateError('Notifications are unavailable.');
   }
 }
