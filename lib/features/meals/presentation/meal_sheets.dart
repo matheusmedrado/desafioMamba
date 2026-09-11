@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/mamba_icon.dart';
 import '../../../app/theme.dart';
 import '../../../core/clock.dart';
 import '../../../core/formatting.dart';
@@ -166,8 +167,8 @@ class _MealFormSheetState extends ConsumerState<MealFormSheet> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(
-                      Icons.schedule,
+                    const MambaIcon(
+                      MambaIcons.clock,
                       size: 16,
                       color: MambaColors.textSecondary,
                     ),
@@ -258,7 +259,11 @@ class _MealFormSheetState extends ConsumerState<MealFormSheet> {
                       foregroundColor: MambaColors.danger,
                       minimumSize: const Size.fromHeight(48),
                     ),
-                    icon: const Icon(Icons.delete_outline),
+                    icon: const MambaIcon(
+                      MambaIcons.trash,
+                      size: 20,
+                      color: MambaColors.danger,
+                    ),
                     label: const Text('Delete meal'),
                   ),
                 ],

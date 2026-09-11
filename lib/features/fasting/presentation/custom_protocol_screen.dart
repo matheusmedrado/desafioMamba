@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/mamba_icon.dart';
+import '../../../app/screen_header.dart';
 import '../../../app/theme.dart';
 import '../domain/fasting_protocol.dart';
 import 'widgets/fasting_window_bar.dart';
+
+const _secondary = TextStyle(
+  fontFamily: 'Manrope',
+  color: MambaColors.textSecondary,
+);
 
 /// Lets the user pick custom fasting hours. Pops with the chosen hours.
 class CustomProtocolScreen extends StatefulWidget {
@@ -27,23 +34,22 @@ class _CustomProtocolScreenState extends State<CustomProtocolScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final eatingHours = 24 - _fastingHours;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Custom protocol')),
       body: SafeArea(
         child: Column(
           children: [
+            const ScreenHeader(title: 'Custom protocol', showBack: true),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                 children: [
                   Text.rich(
                     TextSpan(
                       children: [
                         TextSpan(text: '$_fastingHours'),
-                        TextSpan(
+                        const TextSpan(
                           text: ':',
                           style: TextStyle(
                             color: MambaColors.textSecondary,
@@ -53,20 +59,15 @@ class _CustomProtocolScreenState extends State<CustomProtocolScreen> {
                         TextSpan(text: '$eatingHours'),
                       ],
                     ),
-                    style: textTheme.displayLarge?.copyWith(
-                      fontSize: 76,
-                      fontWeight: FontWeight.w800,
+                    style: MambaTextStyles.heroNumber.copyWith(
                       letterSpacing: -3,
                       height: 1,
-                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'A day is 24 hours. Set one side and the other adjusts.',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: MambaColors.textSecondary,
-                    ),
+                    style: _secondary.copyWith(fontSize: 14),
                   ),
                   const SizedBox(height: 24),
                   FastingWindowBar(
@@ -107,7 +108,11 @@ class _CustomProtocolScreenState extends State<CustomProtocolScreen> {
                     children: [
                       const Padding(
                         padding: EdgeInsets.only(top: 1),
-                        child: Icon(Icons.info_outline, size: 18),
+                        child: MambaIcon(
+                          MambaIcons.info,
+                          size: 18,
+                          color: MambaColors.textPrimary,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -115,7 +120,10 @@ class _CustomProtocolScreenState extends State<CustomProtocolScreen> {
                           'Fasts longer than 20 hours are not recommended '
                           'without medical guidance. The app will still '
                           'track them.',
-                          style: textTheme.bodySmall,
+                          style: _secondary.copyWith(
+                            fontSize: 13,
+                            height: 1.45,
+                          ),
                         ),
                       ),
                     ],
@@ -153,10 +161,8 @@ class _StepperRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 18),
       child: Row(
         children: [
           Expanded(
@@ -165,11 +171,15 @@ class _StepperRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: textTheme.bodyLarge?.copyWith(
+                  style: const TextStyle(
+                    fontFamily: 'Manrope',
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
+                    height: 1.3,
+                    color: MambaColors.textPrimary,
                   ),
                 ),
-                Text(subtitle, style: textTheme.bodySmall),
+                Text(subtitle, style: _secondary.copyWith(fontSize: 13)),
               ],
             ),
           ),
@@ -183,7 +193,7 @@ class _StepperRow extends StatelessWidget {
               child: Row(
                 children: [
                   _StepButton(
-                    icon: Icons.remove,
+                    icon: MambaIcons.minus,
                     label: 'Decrease $title hours',
                     onPressed: onDecrease,
                   ),
@@ -192,13 +202,17 @@ class _StepperRow extends StatelessWidget {
                     child: Text(
                       '$value',
                       textAlign: TextAlign.center,
-                      style: textTheme.titleLarge?.copyWith(
-                        fontFeatures: const [FontFeature.tabularFigures()],
+                      style: const TextStyle(
+                        fontFamily: 'Manrope',
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: MambaColors.textPrimary,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
                   ),
                   _StepButton(
-                    icon: Icons.add,
+                    icon: MambaIcons.plus,
                     label: 'Increase $title hours',
                     onPressed: onIncrease,
                   ),
@@ -219,7 +233,7 @@ class _StepButton extends StatelessWidget {
     required this.onPressed,
   });
 
-  final IconData icon;
+  final MambaIcons icon;
   final String label;
   final VoidCallback? onPressed;
 
@@ -228,15 +242,18 @@ class _StepButton extends StatelessWidget {
     return IconButton(
       onPressed: onPressed,
       tooltip: label,
-      icon: Icon(icon, size: 20),
+      icon: MambaIcon(
+        icon,
+        size: 20,
+        color: onPressed == null
+            ? MambaColors.textSecondary.withValues(alpha: 0.5)
+            : MambaColors.textPrimary,
+      ),
       style: IconButton.styleFrom(
         backgroundColor: MambaColors.surfaceElevated,
         disabledBackgroundColor: MambaColors.surfaceElevated,
-        foregroundColor: MambaColors.textPrimary,
-        disabledForegroundColor: MambaColors.textSecondary.withValues(
-          alpha: 0.5,
-        ),
         minimumSize: const Size(44, 44),
+        shape: const CircleBorder(),
       ),
     );
   }

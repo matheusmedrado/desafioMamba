@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/mamba_icon.dart';
+import '../../../app/screen_header.dart';
 import '../../../app/theme.dart';
 import '../domain/fasting_protocol.dart';
 import 'custom_protocol_screen.dart';
 import 'protocol_controller.dart';
 import 'widgets/fasting_window_bar.dart';
+
+const _onSelected = Color(0xFFE3D6EF);
 
 /// Pick one of the presets or define a custom protocol.
 ///
@@ -70,56 +74,41 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
         ProtocolSettings.defaults;
     final selected = _selected ?? settings.selected;
     final custom = _pendingCustom ?? settings.custom;
-    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Find your rhythm.')),
       body: SafeArea(
         child: Column(
           children: [
+            const ScreenHeader(title: 'Find your rhythm.', showBack: true),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
                 children: [
-                  Text(
+                  const Text(
                     'A fasting window that fits your day. Change it whenever '
                     'you need.',
-                    style: textTheme.bodyMedium?.copyWith(
+                    style: TextStyle(
+                      fontFamily: 'Manrope',
+                      fontSize: 14,
+                      height: 1.4,
                       color: MambaColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   for (final preset in FastingProtocol.presets) ...[
                     _ProtocolOption(
-                      name: preset.name,
-                      tag: preset.tag,
-                      description: preset.description,
-                      fastingHours: preset.fastingHours,
+                      protocol: preset,
                       selected: selected == preset,
-                      trailing: _CheckMark(selected: selected == preset),
-                      semanticsLabel: '${preset.name}, ${preset.tag}',
                       onTap: () => setState(() => _selected = preset),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                   ],
-                  const _SectionDivider(label: 'Or set your own'),
-                  const SizedBox(height: 10),
-                  _ProtocolOption(
+                  _CustomOption(
                     name: custom?.name ?? 'Custom',
-                    tag: custom == null ? 'Custom' : 'Custom, tap to edit',
                     description: custom == null
                         ? 'Set your own fasting and eating hours.'
-                        : 'Your own hours.',
-                    fastingHours:
-                        custom?.fastingHours ??
-                        FastingProtocol.defaultCustomFastingHours,
+                        : 'Your own hours, tap to edit',
                     selected: selected.isCustom,
-                    trailing: Icon(
-                      Icons.chevron_right,
-                      color: selected.isCustom
-                          ? MambaColors.textPrimary
-                          : MambaColors.textSecondary,
-                    ),
                     semanticsLabel: custom == null
                         ? 'Custom protocol, set your own hours'
                         : 'Custom protocol ${custom.name}, tap to edit',
@@ -149,32 +138,113 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
 
 class _ProtocolOption extends StatelessWidget {
   const _ProtocolOption({
-    required this.name,
-    required this.tag,
-    required this.description,
-    required this.fastingHours,
+    required this.protocol,
     required this.selected,
-    required this.trailing,
+    required this.onTap,
+  });
+
+  final FastingProtocol protocol;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = selected ? _onSelected : MambaColors.textSecondary;
+
+    return Semantics(
+      inMutuallyExclusiveGroup: true,
+      checked: selected,
+      button: true,
+      label: '${protocol.name}, ${protocol.tag}',
+      child: Material(
+        color: selected ? MambaColors.purpleDeep : MambaColors.surface,
+        borderRadius: BorderRadius.circular(MambaRadius.medium),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(MambaRadius.medium),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      protocol.name,
+                      style: const TextStyle(
+                        fontFamily: 'Manrope',
+                        fontSize: 34,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1,
+                        height: 1,
+                        color: MambaColors.textPrimary,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    if (selected) ...[
+                      const SizedBox(width: 8),
+                      const _BrandDot(),
+                    ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        protocol.tag,
+                        style: TextStyle(
+                          fontFamily: 'Manrope',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: secondary,
+                        ),
+                      ),
+                    ),
+                    _CheckMark(selected: selected),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  protocol.description,
+                  style: TextStyle(
+                    fontFamily: 'Manrope',
+                    fontSize: 13,
+                    height: 1.4,
+                    color: secondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FastingWindowBar(
+                  fastingHours: protocol.fastingHours,
+                  fillColor: selected
+                      ? MambaColors.textPrimary
+                      : MambaColors.purple,
+                  trackColor: MambaColors.surfaceElevated,
+                  eatingLabelColor: secondary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CustomOption extends StatelessWidget {
+  const _CustomOption({
+    required this.name,
+    required this.description,
+    required this.selected,
     required this.semanticsLabel,
     required this.onTap,
   });
 
   final String name;
-  final String tag;
   final String description;
-  final int fastingHours;
   final bool selected;
-  final Widget trailing;
   final String semanticsLabel;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final secondary = selected
-        ? const Color(0xFFE3D6EF)
-        : MambaColors.textSecondary;
-
     return Semantics(
       inMutuallyExclusiveGroup: true,
       checked: selected,
@@ -187,79 +257,45 @@ class _ProtocolOption extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(MambaRadius.medium),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Text(
-                      name,
-                      style: textTheme.headlineMedium?.copyWith(
-                        fontSize: 34,
-                        letterSpacing: -1,
-                        height: 1,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    if (selected) ...[
-                      const SizedBox(width: 8),
-                      const _BrandDot(),
-                    ],
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        tag,
-                        style: textTheme.labelSmall?.copyWith(color: secondary),
-                      ),
-                    ),
-                    trailing,
-                  ],
-                ),
-                const SizedBox(height: 8),
                 Text(
-                  description,
-                  style: textTheme.bodySmall?.copyWith(color: secondary),
+                  name,
+                  style: const TextStyle(
+                    fontFamily: 'Manrope',
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.66,
+                    height: 1,
+                    color: MambaColors.textPrimary,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
                 ),
-                const SizedBox(height: 12),
-                FastingWindowBar(
-                  fastingHours: fastingHours,
-                  fillColor: selected
+                if (selected) ...[const SizedBox(width: 8), const _BrandDot()],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    description,
+                    style: TextStyle(
+                      fontFamily: 'Manrope',
+                      fontSize: 13,
+                      color: selected ? _onSelected : MambaColors.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                MambaIcon(
+                  MambaIcons.chevronRight,
+                  size: 20,
+                  color: selected
                       ? MambaColors.textPrimary
-                      : MambaColors.purple,
-                  trackColor: selected
-                      ? MambaColors.purple.withValues(alpha: 0.35)
-                      : MambaColors.surfaceElevated,
-                  eatingLabelColor: secondary,
+                      : MambaColors.textSecondary,
                 ),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Thin rule with a label, separating the presets from the custom option.
-class _SectionDivider extends StatelessWidget {
-  const _SectionDivider({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          const Expanded(child: Divider()),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(label, style: Theme.of(context).textTheme.labelSmall),
-          ),
-          const Expanded(child: Divider()),
-        ],
       ),
     );
   }
@@ -301,7 +337,14 @@ class _CheckMark extends StatelessWidget {
             : Border.all(color: MambaColors.textSecondary, width: 1.5),
       ),
       child: selected
-          ? const Icon(Icons.check, size: 14, color: MambaColors.purpleDeep)
+          ? const Center(
+              child: MambaIcon(
+                MambaIcons.check,
+                size: 14,
+                color: MambaColors.purpleDeep,
+                strokeWidth: 2.5,
+              ),
+            )
           : null,
     );
   }

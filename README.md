@@ -77,7 +77,7 @@ assets/
   images/               Wordmark
 lib/
   main.dart             Composition root: ProviderScope and app
-  app/                  MaterialApp, theme, auth gate, tab shell, brand header, and icons
+  app/                  MaterialApp, theme, auth gate, tab shell, brand and screen headers, and icons
   core/                 Clock, SQLite database, local day boundaries, and formatting helpers
   features/
     auth/
@@ -103,7 +103,7 @@ test/
   app/                  App smoke test and icons
   core/                 Clock, database upgrade, local day, and formatting tests
   features/auth/        Validator, repository, controller, login, and logout tests
-  features/fasting/     Protocol, timer, eating window, persistence, completed fasts, notification, controller, fasting route, Today end flow, and selection flow tests
+  features/fasting/     Protocol, timer, eating window, persistence, completed fasts, notification, controller, fasting route, fasting window bar, Today end flow, and selection flow tests
   features/meals/       Validator, SQLite repository, controller, and Meals screen tests
   features/dashboard/   Goal rule, calorie limit, summary provider, and Your day section tests
   features/history/     Day grouping, week summary, controller, History screen, and Week view tests
@@ -273,7 +273,9 @@ Problem: once the core behavior was reasonably stable (timer, persistence, meals
 
 Decision: start a polish pass on the interface, beginning with the navigation and the Today screen. Today now leads with a large timer and a winding fasting route drawn with `CustomPainter`, where a small yellow head follows the route as the fast progresses. Icons are drawn with `flutter_svg` from SVG paths so they keep the same stroke style everywhere. The navigation marks the active tab with a thin purple bar instead of a pill, and logout moved into a settings sheet opened from the header.
 
-Ending a fast now goes through a confirmation sheet. It warns only when the fast is short of its goal, since ending then marks the day as not reached. The end is saved before the Fast complete screen opens, so closing that screen or the app cannot lose it. The screen shows the time fasted, the route, the start and end, and the eating window, which is the rest of 24 hours after the fast ends (a 16-hour fast leaves 8 hours). Its Log a meal button switches to the Meals tab through a small inherited widget from the tab shell, so no routing package is needed. The remaining screens are polished in a follow-up issue.
+Ending a fast now goes through a confirmation sheet. It warns only when the fast is short of its goal, since ending then marks the day as not reached. The end is saved before the Fast complete screen opens, so closing that screen or the app cannot lose it. The screen shows the time fasted, the route, the start and end, and the eating window, which is the rest of 24 hours after the fast ends (a 16-hour fast leaves 8 hours). Its Log a meal button switches to the Meals tab through a small inherited widget from the tab shell, so no routing package is needed.
+
+The last step carried the same look to Meals, History, the day summary, the Week view, protocol selection, and login. Meals and History share a screen header with the settings button, pushed screens use a round back button, and these screens now use the same stroke icons as Today. The Add meal button is off-white like the other primary actions. Protocol presets keep their fasting window bar, while Custom became a compact row that opens the editor. The bar itself had zero height before, because its colored parts were not stretched, so it now has a widget test. On the Week view, the legend wraps on narrow screens, the stat card titles take the same height so the values line up, and the yellow brand accent marks the written summary. Behavior did not change, so the existing screen tests still cover these screens.
 
 Reason: behavior came first, so the polish could build on screens and states that already worked and were tested. The route and the icons give the app a recognizable look, and drawing them from fixed geometry keeps them consistent at every size. `flutter_svg` covers SVG rendering, which Flutter does not provide.
 
@@ -305,7 +307,6 @@ Trade-off: one more package, and the Today screen has more custom layout to main
 - History loads all earlier records at once and does not page.
 - If the app stays in the foreground past midnight, History and the daily summary update the next time the app returns to the foreground.
 - The weekly chart covers only the last seven complete days. Its goal line follows the current protocol.
-- Meals, History, the Week view, protocol selection, and login are still waiting for the UI polish pass, tracked in issue #27.
 - The Fast complete screen is shown only right after ending a fast. Reopening the app later goes back to Today, and the fast is reviewed in History.
 - Final signing, release testing, and delivery links are pending.
 
