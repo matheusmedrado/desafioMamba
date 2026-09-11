@@ -169,9 +169,28 @@ flutter analyze
 flutter test
 ```
 
-Unit tests live in `test/` and mirror the `lib/` layout. Business logic is tested with a `FakeClock` so time based rules run against fixed dates.
+Tests live in `test/` and mirror the `lib/` layout. Time based rules run against a `FakeClock` and fixed UTC dates, and SQLite tests use `sqflite_common_ffi` with an in-memory database, so every run is deterministic.
 
 GitHub Actions runs these checks and `flutter build apk --release` on pull requests into `main` and pushes to `main`.
+
+### What the tests cover
+
+| Area | Behavior tested |
+| --- | --- |
+| Fasting session | Elapsed and remaining time while running, paused, and ended. A pause freezes elapsed time, several pauses add up, and resume moves the target end. Ending before or after the target, reaching the target without ending, and a device clock set before the start. Invalid transitions and inconsistent stored data are rejected. JSON round trips for every status. |
+| Restore | A new provider container stands in for a killed process. A running fast restores with the correct elapsed time, a paused fast stays frozen, a fast whose target passed while the app was closed stays running with the goal reached, and an ended fast that was not copied to SQLite is copied once. A storage failure on restore shows an error, and a malformed stored session is removed. |
+| Notifications | The goal notification is scheduled, rescheduled, or canceled from the saved session after each transition and on restore. Notification failures do not block the timer. |
+| Daily totals | Calories count only meals on the local day, and the limit itself is within goal. Fasting time counts on the day a fast ends, without paused time, and each fast is compared with its own target. The running fast adds to today. Totals match the stored data after a restart. |
+| History and week | Grouping by local day, today left out, this week and last week groups, the weekly summary, and past statuses after a limit change. |
+| Persistence | Round trips and restarts for the session, protocol, calorie limit, meals, and completed fasts, including corrupted records. |
+| Screens | Widget tests for login and logout, the Today timer (ticker, return from background, end sheet, Fast complete), protocol selection, meals, the daily summary, History, and the Week view. |
+
+### Remaining gaps
+
+- Process death is simulated with a new provider container, not by killing the Android process. Real restarts were checked by hand on an emulator.
+- Notification delivery by Android is not tested. The tests use a fake service and check only what is scheduled or canceled.
+- A device clock that jumps is not detected. Elapsed time follows the new clock, and a clock set before the start counts as zero.
+- There are no integration or golden tests, so layout is checked on an emulator. Widget tests use the default test font, which is wider than Manrope.
 
 ## Engineering Decisions
 
