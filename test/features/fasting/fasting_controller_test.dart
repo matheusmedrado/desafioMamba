@@ -32,6 +32,19 @@ class FailingCompletedFastRepository implements CompletedFastRepository {
   }
 }
 
+/// Storage that can start failing, like a device that runs out of space.
+class FlakyFastingRepository extends FastingRepository {
+  FlakyFastingRepository() : super(SharedPreferencesAsync());
+
+  var failLoad = false;
+
+  @override
+  Future<FastingSession?> load() async {
+    if (failLoad) throw StateError('Storage unavailable.');
+    return super.load();
+  }
+}
+
 void main() {
   setUpAll(sqfliteFfiInit);
 
@@ -49,11 +62,14 @@ void main() {
     FakeClock clock, {
     FastingNotificationService? notifications,
     CompletedFastRepository? completedFasts,
+    FastingRepository? repository,
   }) {
     final container = ProviderContainer(
       overrides: [
         clockProvider.overrideWithValue(clock),
         databaseProvider.overrideWith((ref) => database),
+        if (repository != null)
+          fastingRepositoryProvider.overrideWithValue(repository),
         fastingNotificationServiceProvider.overrideWithValue(
           notifications ?? RecordingFastingNotificationService(),
         ),
@@ -280,5 +296,55 @@ void main() {
 
     await controller.restore();
     expect(container.read(fastingControllerProvider).value, paused);
+  });
+
+  test('a paused fast stays paused and frozen after a restart', () async {
+    final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
+    final notifications = RecordingFastingNotificationService();
+    final first = newContainer(clock, notifications: notifications);
+    await first.read(fastingControllerProvider.future);
+    await first.read(fastingControllerProvider.notifier).start();
+    clock.advance(const Duration(hours: 2));
+    await first.read(fastingControllerProvider.notifier).pause();
+    clock.advance(const Duration(hours: 9));
+
+    final second = newContainer(clock, notifications: notifications);
+    final restored = await second.read(fastingControllerProvider.future);
+
+    expect(restored!.status, FastingStatus.paused);
+    expect(restored.elapsedAt(clock.now()), const Duration(hours: 2));
+    expect(restored.targetEndAt, isNull);
+    expect(notifications.syncCalls.last.session, restored);
+  });
+
+  test('pausing without a fast is rejected', () async {
+    final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
+    final container = newContainer(clock);
+    await container.read(fastingControllerProvider.future);
+
+    await expectLater(
+      container.read(fastingControllerProvider.notifier).pause(),
+      throwsStateError,
+    );
+  });
+
+  test('a storage failure on restore shows an error, then recovers', () async {
+    final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
+    final repository = FlakyFastingRepository();
+    final container = newContainer(clock, repository: repository);
+    final controller = container.read(fastingControllerProvider.notifier);
+    await container.read(fastingControllerProvider.future);
+    await controller.start();
+
+    repository.failLoad = true;
+    await controller.restore();
+    expect(container.read(fastingControllerProvider).hasError, isTrue);
+
+    repository.failLoad = false;
+    await controller.restore();
+    expect(
+      container.read(fastingControllerProvider).value?.status,
+      FastingStatus.running,
+    );
   });
 }

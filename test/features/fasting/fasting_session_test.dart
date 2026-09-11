@@ -91,4 +91,111 @@ void main() {
     expect(FastingSession.fromJson(session.toJson()), session);
     expect(session.startedAt.isUtc, isTrue);
   });
+
+  test('ending before the target freezes elapsed time short of the goal', () {
+    final ended = runningSession().endAt(
+      startedAt.add(const Duration(hours: 10)),
+    );
+    final later = startedAt.add(const Duration(days: 2));
+
+    expect(ended.elapsedAt(later), const Duration(hours: 10));
+    expect(ended.remainingAt(later), const Duration(hours: 6));
+    expect(ended.goalReachedAt(later), isFalse);
+    expect(ended.targetEndAt, isNull);
+  });
+
+  test('ending after the target keeps the time fasted past the goal', () {
+    final ended = runningSession().endAt(
+      startedAt.add(const Duration(hours: 17, minutes: 30)),
+    );
+    final later = startedAt.add(const Duration(days: 2));
+
+    expect(ended.elapsedAt(later), const Duration(hours: 17, minutes: 30));
+    expect(ended.remainingAt(later), Duration.zero);
+    expect(ended.goalReachedAt(later), isTrue);
+  });
+
+  test('several pauses add up and none of them count as fasting', () {
+    final session = runningSession()
+        .pauseAt(startedAt.add(const Duration(hours: 2)))
+        .resumeAt(startedAt.add(const Duration(hours: 3)))
+        .pauseAt(startedAt.add(const Duration(hours: 6)))
+        .resumeAt(startedAt.add(const Duration(hours: 8)));
+
+    expect(session.totalPaused, const Duration(hours: 3));
+    expect(
+      session.elapsedAt(startedAt.add(const Duration(hours: 10))),
+      const Duration(hours: 7),
+    );
+    expect(session.targetEndAt, startedAt.add(const Duration(hours: 19)));
+  });
+
+  test('a clock set before the start counts no time, not negative time', () {
+    final session = runningSession();
+    final earlier = startedAt.subtract(const Duration(hours: 1));
+
+    expect(session.elapsedAt(earlier), Duration.zero);
+    expect(session.remainingAt(earlier), const Duration(hours: 16));
+  });
+
+  test('rejects transitions that do not match the current status', () {
+    final running = runningSession();
+    final paused = running.pauseAt(startedAt.add(const Duration(hours: 1)));
+    final ended = running.endAt(startedAt.add(const Duration(hours: 2)));
+
+    expect(() => running.resumeAt(startedAt), throwsStateError);
+    expect(() => paused.pauseAt(startedAt), throwsStateError);
+    expect(() => ended.pauseAt(startedAt), throwsStateError);
+    expect(() => ended.endAt(startedAt), throwsStateError);
+  });
+
+  test('paused and ended sessions survive a JSON round trip', () {
+    final paused = runningSession().pauseAt(
+      startedAt.add(const Duration(hours: 4)),
+    );
+    final ended = paused.endAt(startedAt.add(const Duration(hours: 6)));
+
+    expect(FastingSession.fromJson(paused.toJson()), paused);
+    expect(FastingSession.fromJson(ended.toJson()), ended);
+  });
+
+  test('rejects sessions with missing ids or impossible durations', () {
+    FastingSession build({
+      String id = 'fast-1',
+      String protocolId = '16:8',
+      Duration target = const Duration(hours: 16),
+      Duration totalPaused = Duration.zero,
+    }) => FastingSession(
+      id: id,
+      protocolId: protocolId,
+      target: target,
+      startedAt: startedAt,
+      totalPaused: totalPaused,
+      status: FastingStatus.running,
+    );
+
+    expect(() => build(id: ''), throwsArgumentError);
+    expect(() => build(protocolId: ''), throwsArgumentError);
+    expect(() => build(target: Duration.zero), throwsArgumentError);
+    expect(
+      () => build(totalPaused: const Duration(minutes: -1)),
+      throwsArgumentError,
+    );
+  });
+
+  test('rejects stored data that breaks the status rules', () {
+    final json = runningSession().toJson();
+
+    for (final broken in <Map<String, Object?>>[
+      {...json, 'endedAt': 1},
+      {...json, 'status': 'paused'},
+      {...json, 'status': 'ended'},
+      {...json, 'status': 'done'},
+      {...json, 'pausedAt': 'noon'},
+      {...json, 'targetMilliseconds': 0},
+      {...json, 'startedAt': '2026-09-10'},
+    ]) {
+      expect(() => FastingSession.fromJson(broken), throwsFormatException);
+    }
+  });
 }

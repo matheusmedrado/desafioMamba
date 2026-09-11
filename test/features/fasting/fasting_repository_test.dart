@@ -36,4 +36,13 @@ void main() {
     expect(await repository.load(), isNull);
     expect(await prefs.getString('fasting.active_session'), isNull);
   });
+
+  test('removes a stored value that is not a JSON object', () async {
+    final prefs = SharedPreferencesAsync();
+    final repository = FastingRepository(prefs);
+    await prefs.setString('fasting.active_session', '[1, 2, 3]');
+
+    expect(await repository.load(), isNull);
+    expect(await prefs.getString('fasting.active_session'), isNull);
+  });
 }
