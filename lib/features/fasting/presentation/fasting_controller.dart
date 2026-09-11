@@ -22,6 +22,17 @@ class FastingController extends AsyncNotifier<FastingSession?> {
     return session;
   }
 
+  /// Notifies listeners for every new state, even when the session is equal.
+  ///
+  /// Elapsed time is read from the clock when the screen rebuilds. The ticker
+  /// and [restore] emit an unchanged session, so equality filtering would
+  /// freeze the displayed time.
+  @override
+  bool updateShouldNotify(
+    AsyncValue<FastingSession?> previous,
+    AsyncValue<FastingSession?> next,
+  ) => !identical(previous, next);
+
   Future<void> start() async {
     final settings = await ref.read(protocolControllerProvider.future);
     final protocol = settings.selected;

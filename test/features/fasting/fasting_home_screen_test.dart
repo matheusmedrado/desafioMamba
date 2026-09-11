@@ -13,8 +13,10 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
   });
 
-  testWidgets('starts, pauses, resumes, and ends a fast', (tester) async {
-    final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
+  Future<ProviderContainer> pumpFastingScreen(
+    WidgetTester tester,
+    FakeClock clock,
+  ) async {
     final container = ProviderContainer(
       overrides: [clockProvider.overrideWithValue(clock)],
     );
@@ -30,6 +32,12 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    return container;
+  }
+
+  testWidgets('starts, pauses, resumes, and ends a fast', (tester) async {
+    final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
+    await pumpFastingScreen(tester, clock);
 
     expect(find.text('Start fast'), findsOneWidget);
     await tester.tap(find.text('Start fast'));
@@ -50,5 +58,49 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Fast ended'), findsOneWidget);
     expect(find.text('Start new fast'), findsOneWidget);
+  });
+
+  testWidgets('the ticker refreshes elapsed and remaining time', (
+    tester,
+  ) async {
+    final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
+    await pumpFastingScreen(tester, clock);
+
+    await tester.tap(find.text('Start fast'));
+    await tester.pumpAndSettle();
+    expect(find.text('16:00:00'), findsOneWidget);
+
+    clock.advance(const Duration(minutes: 5));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('00:05:00'), findsWidgets);
+    expect(find.text('15:55:00'), findsOneWidget);
+
+    await tester.tap(find.text('End fast'));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('returning to the foreground shows time passed in background', (
+    tester,
+  ) async {
+    final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
+    await pumpFastingScreen(tester, clock);
+
+    await tester.tap(find.text('Start fast'));
+    await tester.pumpAndSettle();
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    clock.advance(const Duration(hours: 17));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    // Let restore() finish reading storage without firing the ticker.
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('17:00:00'), findsWidgets);
+    expect(find.text('Goal reached'), findsOneWidget);
+
+    await tester.tap(find.text('End fast'));
+    await tester.pumpAndSettle();
   });
 }
