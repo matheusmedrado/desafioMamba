@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../features/fasting/presentation/fasting_home_screen.dart';
 import '../features/history/presentation/history_screen.dart';
 import '../features/meals/presentation/meals_screen.dart';
+import 'home_shell_scope.dart';
 import 'mamba_icon.dart';
 import 'theme.dart';
 
@@ -27,8 +28,8 @@ class _HomeShellState extends State<HomeShell> {
     (MambaIcons.calendar, 'History'),
   ];
 
-  var _index = 0;
-  final _opened = <int>{0};
+  var _index = HomeShellScope.todayTab;
+  final _opened = <int>{HomeShellScope.todayTab};
 
   void _select(int index) {
     setState(() {
@@ -39,37 +40,40 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: [
-          for (final (index, screen) in _screens.indexed)
-            _opened.contains(index) ? screen : const SizedBox.shrink(),
-        ],
-      ),
-      bottomNavigationBar: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: MambaColors.background,
-          border: Border(top: BorderSide(color: MambaColors.surfaceElevated)),
+    return HomeShellScope(
+      selectTab: _select,
+      child: Scaffold(
+        body: IndexedStack(
+          index: _index,
+          children: [
+            for (final (index, screen) in _screens.indexed)
+              _opened.contains(index) ? screen : const SizedBox.shrink(),
+          ],
         ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 72,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-              child: Row(
-                children: [
-                  for (final (index, (icon, label)) in _tabs.indexed)
-                    Expanded(
-                      child: _NavItem(
-                        icon: icon,
-                        label: label,
-                        selected: index == _index,
-                        onTap: () => _select(index),
+        bottomNavigationBar: DecoratedBox(
+          decoration: const BoxDecoration(
+            color: MambaColors.background,
+            border: Border(top: BorderSide(color: MambaColors.surfaceElevated)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: 72,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                child: Row(
+                  children: [
+                    for (final (index, (icon, label)) in _tabs.indexed)
+                      Expanded(
+                        child: _NavItem(
+                          icon: icon,
+                          label: label,
+                          selected: index == _index,
+                          onTap: () => _select(index),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

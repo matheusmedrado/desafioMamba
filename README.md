@@ -16,7 +16,7 @@ Done:
 
 - Local login with a persistent session. The session is restored after closing and reopening the app. The settings button on Today shows the signed-in account and logs out.
 - Fasting protocols: 12:12, 16:8, 18:6, and a custom protocol with 8 to 23 fasting hours. The choice is stored locally.
-- Fasting timer with start, pause, resume, and manual end controls. Elapsed and remaining time are restored from persisted timestamps after backgrounding or restarting the app. Today shows the fast on a winding fasting route.
+- Fasting timer with start, pause, resume, and manual end controls. Elapsed and remaining time are restored from persisted timestamps after backgrounding or restarting the app. Today shows the fast on a winding fasting route. Ending a fast asks for confirmation, warns when the goal is not reached yet, and then shows a Fast complete summary with the time fasted and the eating window.
 - Local notifications when a fast starts and when its planned fasting goal is reached. The scheduled notification is restored, rescheduled, or canceled with the active session.
 - Meal tracking: add, edit, and delete today's meals with a name and calories. The meal time is recorded automatically, and meals are stored in SQLite so they remain after restarting the app.
 - Daily summary on Today: calories against a daily calorie limit, fasting time for the day, and whether the day is within goal. Ended fasts are stored in SQLite, so the totals remain after restarting the app.
@@ -87,7 +87,7 @@ lib/
     fasting/
       domain/           FastingProtocol, ProtocolSettings, FastingSession
       data/             ProtocolRepository, FastingRepository, CompletedFastRepository, and notification service
-      presentation/     Riverpod controllers, Today screen with the fasting route, protocol selection and custom editor
+      presentation/     Riverpod controllers, Today screen with the fasting route, end fast sheet, Fast complete screen, protocol selection and custom editor
     meals/
       domain/           Meal model, calorie total, meal form rules
       data/             MealRepository over sqflite
@@ -103,7 +103,7 @@ test/
   app/                  App smoke test and icons
   core/                 Clock, database upgrade, local day, and formatting tests
   features/auth/        Validator, repository, controller, login, and logout tests
-  features/fasting/     Protocol, timer, persistence, completed fasts, notification, controller, fasting route, and selection flow tests
+  features/fasting/     Protocol, timer, eating window, persistence, completed fasts, notification, controller, fasting route, Today end flow, and selection flow tests
   features/meals/       Validator, SQLite repository, controller, and Meals screen tests
   features/dashboard/   Goal rule, calorie limit, summary provider, and Your day section tests
   features/history/     Day grouping, week summary, controller, History screen, and Week view tests
@@ -136,7 +136,7 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the Today tab shows the next fast or the running fast on the fasting route, with start, pause, resume, and end controls, and a summary of the day with calories, fasting time, and goal status. Tap Calories in that summary to change the daily calorie limit, and use the settings button to log out. The Meals tab lists today's meals and adds, edits, or deletes them. The History tab lists previous days in the Days view and shows the weekly fasting chart in the Week view. Android 13 and newer ask for notification permission when the first fast starts.
+The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the Today tab shows the next fast or the running fast on the fasting route, with start, pause, resume, and end controls (ending asks for confirmation first), and a summary of the day with calories, fasting time, and goal status. Tap Calories in that summary to change the daily calorie limit, and use the settings button to log out. The Meals tab lists today's meals and adds, edits, or deletes them. The History tab lists previous days in the Days view and shows the weekly fasting chart in the Week view. Android 13 and newer ask for notification permission when the first fast starts.
 
 ## Building the APK
 
@@ -271,7 +271,9 @@ Trade-off: no touch interaction, animation, or other time ranges. The goal line 
 
 Problem: once the core behavior was reasonably stable (timer, persistence, meals, daily summary, and history), the interface still used generic layouts and had little personality.
 
-Decision: start a polish pass on the interface, beginning with the navigation and the Today screen. Today now leads with a large timer and a winding fasting route drawn with `CustomPainter`, where a small yellow head follows the route as the fast progresses. Icons are drawn with `flutter_svg` from SVG paths so they keep the same stroke style everywhere. The navigation marks the active tab with a thin purple bar instead of a pill, and logout moved into a settings sheet opened from the header. The remaining screens are polished in follow-up issues.
+Decision: start a polish pass on the interface, beginning with the navigation and the Today screen. Today now leads with a large timer and a winding fasting route drawn with `CustomPainter`, where a small yellow head follows the route as the fast progresses. Icons are drawn with `flutter_svg` from SVG paths so they keep the same stroke style everywhere. The navigation marks the active tab with a thin purple bar instead of a pill, and logout moved into a settings sheet opened from the header.
+
+Ending a fast now goes through a confirmation sheet. It warns only when the fast is short of its goal, since ending then marks the day as not reached. The end is saved before the Fast complete screen opens, so closing that screen or the app cannot lose it. The screen shows the time fasted, the route, the start and end, and the eating window, which is the rest of 24 hours after the fast ends (a 16-hour fast leaves 8 hours). Its Log a meal button switches to the Meals tab through a small inherited widget from the tab shell, so no routing package is needed. The remaining screens are polished in a follow-up issue.
 
 Reason: behavior came first, so the polish could build on screens and states that already worked and were tested. The route and the icons give the app a recognizable look, and drawing them from fixed geometry keeps them consistent at every size. `flutter_svg` covers SVG rendering, which Flutter does not provide.
 
@@ -303,7 +305,8 @@ Trade-off: one more package, and the Today screen has more custom layout to main
 - History loads all earlier records at once and does not page.
 - If the app stays in the foreground past midnight, History and the daily summary update the next time the app returns to the foreground.
 - The weekly chart covers only the last seven complete days. Its goal line follows the current protocol.
-- Ending a fast has no confirmation and no completion screen yet, and Meals, History, the Week view, protocol selection, and login are still waiting for the UI polish pass. Both are tracked in issues #26 and #27.
+- Meals, History, the Week view, protocol selection, and login are still waiting for the UI polish pass, tracked in issue #27.
+- The Fast complete screen is shown only right after ending a fast. Reopening the app later goes back to Today, and the fast is reviewed in History.
 - Final signing, release testing, and delivery links are pending.
 
 ## What I Would Improve With More Time

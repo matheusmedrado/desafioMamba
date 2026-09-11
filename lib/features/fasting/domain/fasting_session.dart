@@ -90,6 +90,14 @@ class FastingSession {
   /// Whether the planned fasting window has been reached at [now].
   bool goalReachedAt(DateTime now) => elapsedAt(now) >= target;
 
+  /// When the eating window after an ended fast closes: the rest of 24 hours.
+  DateTime? get eatingWindowEndsAt {
+    final end = endedAt;
+    if (end == null) return null;
+    final eating = const Duration(hours: 24) - target;
+    return end.add(eating.isNegative ? Duration.zero : eating);
+  }
+
   /// Pauses a running session at [now].
   FastingSession pauseAt(DateTime now) {
     _requireStatus(FastingStatus.running, 'pause');

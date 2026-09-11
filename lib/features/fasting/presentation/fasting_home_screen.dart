@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/brand_header.dart';
+import '../../../app/home_shell_scope.dart';
 import '../../../app/mamba_icon.dart';
 import '../../../app/theme.dart';
 import '../../../core/clock.dart';
@@ -12,20 +13,12 @@ import '../../auth/presentation/settings_sheet.dart';
 import '../../dashboard/presentation/day_summary_section.dart';
 import '../domain/fasting_protocol.dart';
 import '../domain/fasting_session.dart';
+import 'end_fast_sheet.dart';
+import 'fast_complete_screen.dart';
 import 'fasting_controller.dart';
 import 'protocol_controller.dart';
 import 'protocol_select_screen.dart';
 import 'widgets/fasting_path.dart';
-
-const _heroNumber = TextStyle(
-  fontFamily: 'Manrope',
-  fontSize: 76,
-  fontWeight: FontWeight.w800,
-  letterSpacing: -4.9,
-  height: 1.05,
-  color: MambaColors.textPrimary,
-  fontFeatures: [FontFeature.tabularFigures()],
-);
 
 const _secondary = TextStyle(
   fontFamily: 'Manrope',
@@ -125,7 +118,7 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
                         busy: _actionInProgress,
                         onPause: () => _run(_controller.pause),
                         onResume: () => _run(_controller.resume),
-                        onEnd: () => _run(_controller.end),
+                        onEnd: () => _confirmEnd(active),
                       ),
                     const SizedBox(height: 20),
                     const DaySummarySection(),
@@ -153,6 +146,32 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
       if (mounted) setState(() => _actionInProgress = false);
     }
   }
+
+  Future<void> _confirmEnd(FastingSession session) async {
+    if (_actionInProgress) return;
+    final confirmed = await showEndFastSheet(
+      context,
+      session: session,
+      now: ref.read(clockProvider).now(),
+    );
+    if (!confirmed || !mounted) return;
+
+    await _run(_controller.end);
+    final ended = ref.read(fastingControllerProvider).value;
+    if (!mounted || ended?.status != FastingStatus.ended) return;
+
+    final action = await Navigator.of(context).push<FastCompleteAction>(
+      MaterialPageRoute(
+        builder: (_) => FastCompleteScreen(
+          session: ended!,
+          now: ref.read(clockProvider).now(),
+        ),
+      ),
+    );
+    if (action == FastCompleteAction.logMeal && mounted) {
+      HomeShellScope.maybeOf(context)?.selectTab(HomeShellScope.mealsTab);
+    }
+  }
 }
 
 class _DayHeading extends StatelessWidget {
@@ -170,14 +189,12 @@ class _DayHeading extends StatelessWidget {
         children: [
           Text(
             formatGreeting(now),
-            style: TextStyle(
-              fontFamily: 'Manrope',
-              fontSize: compact ? 20 : 24,
-              fontWeight: FontWeight.w800,
-              letterSpacing: compact ? -0.9 : -1.08,
-              height: 1.15,
-              color: MambaColors.textPrimary,
-            ),
+            style: compact
+                ? MambaTextStyles.screenTitle.copyWith(
+                    fontSize: 20,
+                    letterSpacing: -0.9,
+                  )
+                : MambaTextStyles.screenTitle,
           ),
           const SizedBox(height: 5),
           Text(formatDayLabel(now), style: _secondary.copyWith(fontSize: 12)),
@@ -233,7 +250,7 @@ class _IdleHero extends StatelessWidget {
         _FitWidth(
           child: Text(
             '${protocol.fastingHours.toString().padLeft(2, '0')}:00',
-            style: _heroNumber,
+            style: MambaTextStyles.heroNumber,
           ),
         ),
         const SizedBox(height: 4),
@@ -375,7 +392,10 @@ class _ActiveHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(_hoursAndMinutes(elapsed), style: _heroNumber),
+                Text(
+                  _hoursAndMinutes(elapsed),
+                  style: MambaTextStyles.heroNumber,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   ':${elapsed.inSeconds.remainder(60).toString().padLeft(2, '0')}',
