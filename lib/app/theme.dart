@@ -224,8 +224,8 @@ ThemeData buildMambaTheme() {
       ),
     ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: MambaColors.purple,
-      foregroundColor: MambaColors.textPrimary,
+      backgroundColor: MambaColors.textPrimary,
+      foregroundColor: MambaColors.background,
       elevation: 0,
       focusElevation: 0,
       hoverElevation: 0,

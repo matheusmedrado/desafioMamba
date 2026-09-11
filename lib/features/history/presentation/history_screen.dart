@@ -3,9 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/brand_header.dart';
+import '../../../app/mamba_icon.dart';
+import '../../../app/screen_header.dart';
 import '../../../app/theme.dart';
 import '../../../core/clock.dart';
 import '../../../core/formatting.dart';
+import '../../auth/presentation/settings_sheet.dart';
 import '../../dashboard/domain/day_summary.dart';
 import '../../fasting/domain/fasting_protocol.dart';
 import '../domain/history_day.dart';
@@ -15,6 +19,11 @@ import 'history_day_screen.dart';
 import 'week_view.dart';
 
 enum _HistoryView { days, week }
+
+const _secondary = TextStyle(
+  fontFamily: 'Manrope',
+  color: MambaColors.textSecondary,
+);
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -54,28 +63,34 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
     final history = ref.watch(historyControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 64,
-        titleSpacing: 24,
-        title: const Text('History'),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
-            child: _ViewSwitch(
-              selected: _view,
-              onChanged: (view) => setState(() => _view = view),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            ScreenHeader(
+              title: 'History',
+              action: RoundIconButton(
+                icon: MambaIcons.settings,
+                label: 'Settings',
+                onPressed: () => showSettingsSheet(context),
+              ),
             ),
-          ),
-          Expanded(
-            child: switch (history) {
-              AsyncData(:final value) => _content(value),
-              AsyncError() => _HistoryError(onRetry: _refresh),
-              _ => const Center(child: CircularProgressIndicator()),
-            },
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: _ViewSwitch(
+                selected: _view,
+                onChanged: (view) => setState(() => _view = view),
+              ),
+            ),
+            Expanded(
+              child: switch (history) {
+                AsyncData(:final value) => _content(value),
+                AsyncError() => _HistoryError(onRetry: _refresh),
+                _ => const Center(child: CircularProgressIndicator()),
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -254,11 +269,10 @@ class _HeaderStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: textTheme.labelSmall),
+        Text(label, style: _secondary.copyWith(fontSize: 12)),
         const SizedBox(height: 2),
         Text.rich(
           TextSpan(
@@ -267,14 +281,22 @@ class _HeaderStat extends StatelessWidget {
               if (unit != null)
                 TextSpan(
                   text: unit,
-                  style: textTheme.labelMedium?.copyWith(
+                  style: _secondary.copyWith(
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
+                    letterSpacing: 0,
                   ),
                 ),
             ],
           ),
-          style: textTheme.titleLarge?.copyWith(
-            fontFeatures: const [FontFeature.tabularFigures()],
+          style: const TextStyle(
+            fontFamily: 'Manrope',
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.44,
+            height: 1.15,
+            color: MambaColors.textPrimary,
+            fontFeatures: [FontFeature.tabularFigures()],
           ),
         ),
       ],
@@ -298,8 +320,11 @@ class _GroupTitle extends StatelessWidget {
       padding: const EdgeInsets.only(top: 24, bottom: 4),
       child: Text(
         label.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall
-            ?.copyWith(fontWeight: FontWeight.w600, letterSpacing: 1),
+        style: _secondary.copyWith(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.96,
+        ),
       ),
     );
   }
@@ -312,7 +337,6 @@ class _DayRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final summary = day.summary;
     final lastFast = day.fasts.isEmpty ? null : day.fasts.last;
     final calories = '${formatThousands(summary.calories)} kcal';
@@ -322,49 +346,55 @@ class _DayRow extends StatelessWidget {
         MaterialPageRoute<void>(builder: (_) => HistoryDayScreen(day: day)),
       ),
       borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            _DateBadge(day.day),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    lastFast == null
-                        ? 'No fast'
-                        : '${formatHoursMinutes(summary.fastingTime)} fast',
-                    style: textTheme.titleSmall?.copyWith(
-                      fontWeight: lastFast == null
-                          ? FontWeight.w500
-                          : FontWeight.w600,
-                      color: lastFast == null
-                          ? MambaColors.textSecondary
-                          : null,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 64),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            children: [
+              _DateBadge(day.day),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      lastFast == null
+                          ? 'No fast'
+                          : '${formatHoursMinutes(summary.fastingTime)} fast',
+                      style: TextStyle(
+                        fontFamily: 'Manrope',
+                        fontSize: 15,
+                        height: 1.2,
+                        fontWeight: lastFast == null
+                            ? FontWeight.w500
+                            : FontWeight.w600,
+                        color: lastFast == null
+                            ? MambaColors.textSecondary
+                            : MambaColors.textPrimary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    lastFast == null
-                        ? calories
-                        : '${FastingProtocol.nameFor(lastFast.protocolId, lastFast.target)} · $calories',
-                    style: textTheme.bodySmall,
-                  ),
-                ],
+                    const SizedBox(height: 3),
+                    Text(
+                      lastFast == null
+                          ? calories
+                          : '${FastingProtocol.nameFor(lastFast.protocolId, lastFast.target)} · $calories',
+                      style: _secondary.copyWith(fontSize: 13),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            _StatusDot(hasFast: lastFast != null, status: summary.status),
-            const SizedBox(width: 8),
-            const Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: MambaColors.textSecondary,
-            ),
-          ],
+              const SizedBox(width: 12),
+              _StatusDot(hasFast: lastFast != null, status: summary.status),
+              const SizedBox(width: 8),
+              const MambaIcon(
+                MambaIcons.chevronRight,
+                size: 18,
+                color: MambaColors.textSecondary,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -378,7 +408,6 @@ class _DateBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     return Container(
       width: 44,
       height: 44,
@@ -392,15 +421,20 @@ class _DateBadge extends StatelessWidget {
         children: [
           Text(
             '${day.day}',
-            style: textTheme.titleMedium?.copyWith(
+            style: const TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.34,
               height: 1,
-              fontFeatures: const [FontFeature.tabularFigures()],
+              color: MambaColors.textPrimary,
+              fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
           const SizedBox(height: 3),
           Text(
             formatWeekdayShort(day).toUpperCase(),
-            style: textTheme.labelSmall?.copyWith(
+            style: _secondary.copyWith(
               fontSize: 10,
               height: 1,
               letterSpacing: 0.4,
@@ -421,10 +455,10 @@ class _StatusDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, label, color) = !hasFast
-        ? (Icons.remove, 'No fast', MambaColors.textSecondary)
+        ? (MambaIcons.minus, 'No fast', MambaColors.textSecondary)
         : status == DayGoalStatus.within
-        ? (Icons.check, 'Within goal', MambaColors.textPrimary)
-        : (Icons.flag_outlined, 'Outside goal', MambaColors.textSecondary);
+        ? (MambaIcons.check, 'Within goal', MambaColors.textPrimary)
+        : (MambaIcons.flag, 'Outside goal', MambaColors.textSecondary);
 
     return Tooltip(
       message: label,
@@ -435,7 +469,9 @@ class _StatusDot extends StatelessWidget {
         ),
         child: SizedBox.square(
           dimension: 28,
-          child: Icon(icon, size: 15, color: color),
+          child: Center(
+            child: MambaIcon(icon, size: 15, color: color, strokeWidth: 2.4),
+          ),
         ),
       ),
     );
@@ -463,7 +499,13 @@ class _EmptyHistory extends StatelessWidget {
               ),
               child: SizedBox.square(
                 dimension: 64,
-                child: Icon(Icons.calendar_today_outlined, size: 28),
+                child: Center(
+                  child: MambaIcon(
+                    MambaIcons.calendar,
+                    size: 28,
+                    color: MambaColors.textPrimary,
+                  ),
+                ),
               ),
             ),
           ),

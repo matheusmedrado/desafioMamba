@@ -3,9 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/brand_header.dart';
+import '../../../app/mamba_icon.dart';
+import '../../../app/screen_header.dart';
 import '../../../app/theme.dart';
 import '../../../core/clock.dart';
 import '../../../core/formatting.dart';
+import '../../auth/presentation/settings_sheet.dart';
 import '../domain/meal.dart';
 import 'meal_sheets.dart';
 import 'meals_controller.dart';
@@ -44,7 +48,6 @@ class _MealsScreenState extends ConsumerState<MealsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final mealsState = ref.watch(mealsControllerProvider);
     final now = ref.read(clockProvider).now();
 
@@ -53,34 +56,43 @@ class _MealsScreenState extends ConsumerState<MealsScreen>
     return ScaffoldMessenger(
       key: _messengerKey,
       child: Scaffold(
-        appBar: AppBar(
-          toolbarHeight: 64,
-          titleSpacing: 24,
-          title: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Meals'),
-              Text(formatDayLabel(now), style: textTheme.bodySmall),
-            ],
-          ),
-        ),
         floatingActionButton: mealsState.hasValue
             ? FloatingActionButton.extended(
                 onPressed: () => _openForm(),
-                icon: const Icon(Icons.add),
+                icon: const MambaIcon(
+                  MambaIcons.plus,
+                  color: MambaColors.background,
+                ),
                 label: const Text('Add meal'),
               )
             : null,
-        body: mealsState.hasValue
-            ? _MealList(meals: mealsState.value!, onEdit: _openForm)
-            : mealsState.hasError
-            ? _ErrorContent(
-                onRetry: () => unawaited(
-                  ref.read(mealsControllerProvider.notifier).refresh(),
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              ScreenHeader(
+                title: 'Meals',
+                subtitle: formatDayLabel(now),
+                action: RoundIconButton(
+                  icon: MambaIcons.settings,
+                  label: 'Settings',
+                  onPressed: () => showSettingsSheet(context),
                 ),
-              )
-            : const Center(child: CircularProgressIndicator()),
+              ),
+              Expanded(
+                child: mealsState.hasValue
+                    ? _MealList(meals: mealsState.value!, onEdit: _openForm)
+                    : mealsState.hasError
+                    ? _ErrorContent(
+                        onRetry: () => unawaited(
+                          ref.read(mealsControllerProvider.notifier).refresh(),
+                        ),
+                      )
+                    : const Center(child: CircularProgressIndicator()),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -215,7 +227,6 @@ class _MealRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     const tabular = [FontFeature.tabularFigures()];
 
     return InkWell(
@@ -229,7 +240,13 @@ class _MealRow extends StatelessWidget {
               width: 48,
               child: Text(
                 formatClockTime(meal.eatenAt),
-                style: textTheme.labelMedium?.copyWith(fontFeatures: tabular),
+                style: const TextStyle(
+                  fontFamily: 'Manrope',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: MambaColors.textSecondary,
+                  fontFeatures: tabular,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -238,9 +255,11 @@ class _MealRow extends StatelessWidget {
                 meal.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: textTheme.bodyLarge?.copyWith(
+                style: const TextStyle(
+                  fontFamily: 'Manrope',
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
+                  color: MambaColors.textPrimary,
                 ),
               ),
             ),
@@ -249,28 +268,29 @@ class _MealRow extends StatelessWidget {
               TextSpan(
                 children: [
                   TextSpan(text: formatThousands(meal.calories)),
-                  TextSpan(
+                  const TextSpan(
                     text: ' kcal',
-                    style: textTheme.labelSmall?.copyWith(
+                    style: TextStyle(
+                      fontSize: 12,
                       fontWeight: FontWeight.w400,
+                      color: MambaColors.textSecondary,
                     ),
                   ),
                 ],
               ),
-              style: textTheme.titleSmall?.copyWith(
+              style: const TextStyle(
+                fontFamily: 'Manrope',
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
+                color: MambaColors.textPrimary,
                 fontFeatures: tabular,
               ),
             ),
-            IconButton(
+            const SizedBox(width: 12),
+            RoundIconButton(
+              icon: MambaIcons.pencil,
+              label: 'Edit ${meal.name}',
               onPressed: onTap,
-              tooltip: 'Edit ${meal.name}',
-              icon: const Icon(
-                Icons.edit_outlined,
-                size: 20,
-                color: MambaColors.textSecondary,
-              ),
             ),
           ],
         ),
@@ -298,7 +318,13 @@ class _EmptyState extends StatelessWidget {
             ),
             child: SizedBox.square(
               dimension: 64,
-              child: Icon(Icons.restaurant_outlined, size: 28),
+              child: Center(
+                child: MambaIcon(
+                  MambaIcons.meals,
+                  size: 28,
+                  color: MambaColors.textPrimary,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 20),

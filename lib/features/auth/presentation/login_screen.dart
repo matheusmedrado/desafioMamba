@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/mamba_icon.dart';
 import '../../../app/theme.dart';
 import '../domain/login_validator.dart';
 import 'auth_controller.dart';
@@ -81,6 +82,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Text(
                   'Your fasting plan, right where you left it.',
                   style: textTheme.bodyLarge?.copyWith(
+                    fontSize: 15,
                     color: MambaColors.textSecondary,
                   ),
                 ),
@@ -116,16 +118,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       tooltip: _obscurePassword
                           ? 'Show password'
                           : 'Hide password',
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                      icon: MambaIcon(
+                        _obscurePassword ? MambaIcons.eye : MambaIcons.eyeOff,
+                        size: 20,
                         color: MambaColors.textSecondary,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
                 FilledButton(
                   onPressed: _submitting ? null : _submit,
                   child: Text(_submitting ? 'Signing in...' : 'Log in'),
