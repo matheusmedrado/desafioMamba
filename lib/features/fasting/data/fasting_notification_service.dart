@@ -79,8 +79,15 @@ class LocalFastingNotificationService implements FastingNotificationService {
     );
   }
 
-  Future<void> _ensureInitialized() {
-    return _initialization ??= _initializePlugin();
+  Future<void> _ensureInitialized() async {
+    final initialization = _initialization ??= _initializePlugin();
+    try {
+      await initialization;
+    } catch (_) {
+      // Forget the failed attempt so the next sync can try again.
+      _initialization = null;
+      rethrow;
+    }
   }
 
   Future<void> _initializePlugin() async {
@@ -90,7 +97,9 @@ class LocalFastingNotificationService implements FastingNotificationService {
 
     await _plugin.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('ic_launcher'),
+        // Without the type prefix Android only searches drawable resources,
+        // and the launcher icon is a mipmap.
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
     );
   }

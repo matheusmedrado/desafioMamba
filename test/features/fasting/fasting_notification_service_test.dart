@@ -65,6 +65,13 @@ void main() {
         'zonedSchedule',
       ]);
 
+      // Android looks the icon up as a drawable unless the type is explicit.
+      final initialize = log.first;
+      expect(
+        (initialize.arguments as Map)['defaultIcon'],
+        '@mipmap/ic_launcher',
+      );
+
       final start = log.singleWhere((call) => call.method == 'show');
       expect((start.arguments as Map)['id'], 1001);
       expect((start.arguments as Map)['title'], 'Fast started');
@@ -86,6 +93,33 @@ void main() {
       expect(platformSpecifics['scheduleMode'], 'inexactAllowWhileIdle');
     },
   );
+
+  test('retries setup after a failed initialization', () async {
+    var failInitialize = true;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(notificationChannel, (call) async {
+          log.add(call);
+          if (call.method != 'initialize') return null;
+          if (failInitialize) {
+            failInitialize = false;
+            throw PlatformException(code: 'invalid_icon');
+          }
+          return true;
+        });
+    final service = LocalFastingNotificationService();
+
+    await expectLater(
+      service.sync(null, startedAt),
+      throwsA(isA<PlatformException>()),
+    );
+    await service.sync(null, startedAt);
+
+    expect(log.map((call) => call.method), [
+      'initialize',
+      'initialize',
+      'cancel',
+    ]);
+  });
 
   test('cancels without scheduling when the target is reached', () async {
     final service = LocalFastingNotificationService();
