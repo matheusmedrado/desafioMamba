@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mamba_fast_tracker/app/theme.dart';
 import 'package:mamba_fast_tracker/core/clock.dart';
+import 'package:mamba_fast_tracker/features/fasting/data/fasting_notification_service.dart';
 import 'package:mamba_fast_tracker/features/fasting/presentation/fasting_controller.dart';
 import 'package:mamba_fast_tracker/features/fasting/presentation/fasting_home_screen.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+
+import 'fake_fasting_notification_service.dart';
 
 void main() {
   setUp(() {
@@ -19,7 +22,12 @@ void main() {
     FakeClock clock,
   ) async {
     final container = ProviderContainer(
-      overrides: [clockProvider.overrideWithValue(clock)],
+      overrides: [
+        clockProvider.overrideWithValue(clock),
+        fastingNotificationServiceProvider.overrideWithValue(
+          RecordingFastingNotificationService(),
+        ),
+      ],
     );
     addTearDown(container.dispose);
 

@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mamba_fast_tracker/app/app.dart';
+import 'package:mamba_fast_tracker/features/fasting/data/fasting_notification_service.dart';
 import 'package:mamba_fast_tracker/features/auth/presentation/login_screen.dart';
 import 'package:mamba_fast_tracker/features/fasting/presentation/fasting_home_screen.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+
+import '../fasting/fake_fasting_notification_service.dart';
 
 void main() {
   setUp(() {
@@ -14,7 +17,16 @@ void main() {
   });
 
   Future<void> pumpApp(WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: MambaApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          fastingNotificationServiceProvider.overrideWithValue(
+            RecordingFastingNotificationService(),
+          ),
+        ],
+        child: const MambaApp(),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 

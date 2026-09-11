@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/clock.dart';
 import '../data/fasting_repository.dart';
+import '../data/fasting_notification_service.dart';
 import '../domain/fasting_session.dart';
 import 'protocol_controller.dart';
 
@@ -18,6 +20,7 @@ class FastingController extends AsyncNotifier<FastingSession?> {
   Future<FastingSession?> build() async {
     ref.onDispose(_stopTicker);
     final session = await ref.watch(fastingRepositoryProvider).load();
+    await _syncNotifications(session);
     _syncTicker(session);
     return session;
   }
@@ -43,7 +46,7 @@ class FastingController extends AsyncNotifier<FastingSession?> {
       target: protocol.target,
       startedAt: now,
     );
-    await _save(session);
+    await _save(session, showStartedNotification: true);
   }
 
   Future<void> pause() {
@@ -65,6 +68,7 @@ class FastingController extends AsyncNotifier<FastingSession?> {
   Future<void> restore() async {
     try {
       final session = await ref.read(fastingRepositoryProvider).load();
+      await _syncNotifications(session);
       state = AsyncData(session);
       _syncTicker(session);
     } catch (error, stackTrace) {
@@ -99,12 +103,44 @@ class FastingController extends AsyncNotifier<FastingSession?> {
     await _save(updated);
   }
 
-  Future<void> _save(FastingSession session) async {
+  Future<void> _save(
+    FastingSession session, {
+    bool showStartedNotification = false,
+  }) async {
     // Persist before exposing the new state so a restart cannot observe a
     // transition that was only applied in memory.
     await ref.read(fastingRepositoryProvider).save(session);
+    if (showStartedNotification) {
+      await _notify((notifications) => notifications.showFastStarted());
+    }
+    await _syncNotifications(session);
     state = AsyncData(session);
     _syncTicker(session);
+  }
+
+  Future<void> _syncNotifications(FastingSession? session) {
+    final now = ref.read(clockProvider).now();
+    return _notify((notifications) => notifications.sync(session, now));
+  }
+
+  /// Runs a notification call without letting its failure reach the timer.
+  ///
+  /// Notifications are a reminder projected from the saved session. If the
+  /// platform rejects a call, the fast must still load and change state. The
+  /// next transition or restore synchronizes again.
+  Future<void> _notify(
+    Future<void> Function(FastingNotificationService notifications) call,
+  ) async {
+    try {
+      await call(ref.read(fastingNotificationServiceProvider));
+    } catch (error, stackTrace) {
+      developer.log(
+        'Fasting notification failed',
+        name: 'fasting.notifications',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   void _syncTicker(FastingSession? session) {
