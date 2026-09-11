@@ -200,9 +200,40 @@ ThemeData buildMambaTheme() {
         borderRadius: BorderRadius.all(Radius.circular(MambaRadius.medium)),
       ),
     ),
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      backgroundColor: MambaColors.purple,
+      foregroundColor: MambaColors.textPrimary,
+      elevation: 0,
+      focusElevation: 0,
+      hoverElevation: 0,
+      highlightElevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(MambaRadius.medium)),
+      ),
+      extendedTextStyle: TextStyle(
+        fontFamily: 'Manrope',
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: MambaColors.surface,
+      modalBackgroundColor: MambaColors.surface,
+      modalBarrierColor: Color(0xCC0B0B0D),
+      elevation: 0,
+      modalElevation: 0,
+      dragHandleColor: MambaColors.surfaceHover,
+      dragHandleSize: Size(32, 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(MambaRadius.large),
+        ),
+      ),
+    ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: MambaColors.background,
-      indicatorColor: Colors.transparent,
+      backgroundColor: MambaColors.surface,
+      indicatorColor: MambaColors.purpleTint,
+      indicatorShape: const StadiumBorder(),
       height: 72,
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
