@@ -49,6 +49,17 @@ class CompletedFastRepository {
     return rows.map(_fromRow).toList();
   }
 
+  /// Fasts that ended before the local day that contains [day], oldest first.
+  Future<List<FastingSession>> endedBefore(DateTime day) async {
+    final rows = await _database.query(
+      _table,
+      where: 'ended_at < ?',
+      whereArgs: [localDayBounds(day).start.millisecondsSinceEpoch],
+      orderBy: 'ended_at, id',
+    );
+    return rows.map(_fromRow).toList();
+  }
+
   static FastingSession _fromRow(Map<String, Object?> row) {
     DateTime timestamp(String column) =>
         DateTime.fromMillisecondsSinceEpoch(row[column]! as int, isUtc: true);

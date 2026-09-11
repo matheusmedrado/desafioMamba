@@ -30,6 +30,10 @@ String formatDayLabel(DateTime time) {
       '${_months[local.month - 1]}';
 }
 
+/// Short local weekday, such as "Wed".
+String formatWeekdayShort(DateTime time) =>
+    _weekdays[time.toLocal().weekday - 1].substring(0, 3);
+
 /// Formats the local time of day on a 24-hour clock, such as "16:20".
 String formatClockTime(DateTime time) {
   final local = time.toLocal();

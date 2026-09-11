@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../features/fasting/presentation/fasting_home_screen.dart';
+import '../features/history/presentation/history_screen.dart';
 import '../features/meals/presentation/meals_screen.dart';
 import 'theme.dart';
 
-/// Signed-in screens behind the bottom navigation.
-///
-/// A tab is built the first time it is opened and then kept, so switching tabs
-/// does not reload it and the meals database opens only when Meals is used.
+/// Signed-in tabs. Each tab is built on first open and then kept.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -16,7 +14,11 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  static const _mealsTab = 1;
+  static const _screens = <Widget>[
+    FastingHomeScreen(),
+    MealsScreen(),
+    HistoryScreen(),
+  ];
 
   var _index = 0;
   final _opened = <int>{0};
@@ -34,11 +36,8 @@ class _HomeShellState extends State<HomeShell> {
       body: IndexedStack(
         index: _index,
         children: [
-          const FastingHomeScreen(),
-          if (_opened.contains(_mealsTab))
-            const MealsScreen()
-          else
-            const SizedBox.shrink(),
+          for (final (index, screen) in _screens.indexed)
+            _opened.contains(index) ? screen : const SizedBox.shrink(),
         ],
       ),
       bottomNavigationBar: DecoratedBox(
@@ -58,6 +57,11 @@ class _HomeShellState extends State<HomeShell> {
               icon: Icon(Icons.restaurant_outlined),
               selectedIcon: Icon(Icons.restaurant),
               label: 'Meals',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.calendar_today_outlined),
+              selectedIcon: Icon(Icons.calendar_today),
+              label: 'History',
             ),
           ],
         ),

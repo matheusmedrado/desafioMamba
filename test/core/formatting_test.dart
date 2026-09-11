@@ -7,6 +7,11 @@ void main() {
     expect(formatDayLabel(DateTime(2026, 1, 31)), 'Saturday, 31 Jan');
   });
 
+  test('formatWeekdayShort uses three letters', () {
+    expect(formatWeekdayShort(DateTime(2026, 9, 8)), 'Tue');
+    expect(formatWeekdayShort(DateTime(2026, 9, 13)), 'Sun');
+  });
+
   test('formatClockTime pads hours and minutes', () {
     expect(formatClockTime(DateTime(2026, 9, 9, 7, 5)), '07:05');
     expect(formatClockTime(DateTime(2026, 9, 9, 16, 20)), '16:20');

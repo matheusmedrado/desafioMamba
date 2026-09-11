@@ -119,6 +119,24 @@ void main() {
     ]);
   });
 
+  test(
+    'mealsBefore lists meals from earlier local days, oldest first',
+    () async {
+      final repository = MealRepository(await openInMemory());
+      Future<Meal> addAt(DateTime time) =>
+          repository.add(name: 'Meal', calories: 100, eatenAt: time);
+
+      final lastOfYesterday = await addAt(DateTime(2026, 9, 9, 23, 59, 59));
+      final older = await addAt(DateTime(2026, 9, 1, 12));
+      await addAt(DateTime(2026, 9, 10));
+
+      expect(await repository.mealsBefore(DateTime(2026, 9, 10, 15)), [
+        older,
+        lastOfYesterday,
+      ]);
+    },
+  );
+
   test('totalCalories sums the meals', () {
     final eatenAt = DateTime.utc(2026, 9, 10, 12);
     expect(totalCalories([]), 0);

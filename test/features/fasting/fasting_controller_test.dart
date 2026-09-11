@@ -25,6 +25,11 @@ class FailingCompletedFastRepository implements CompletedFastRepository {
   Future<List<FastingSession>> endedOn(DateTime day) async {
     throw StateError('Database unavailable.');
   }
+
+  @override
+  Future<List<FastingSession>> endedBefore(DateTime day) async {
+    throw StateError('Database unavailable.');
+  }
 }
 
 void main() {
