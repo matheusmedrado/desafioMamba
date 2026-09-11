@@ -4,7 +4,7 @@
 
 Flutter app for the Mamba Fast Tracker technical challenge: intermittent fasting and calorie tracking, Android first, all data stored on the device.
 
-The repository currently has local login with a persistent session, fasting protocol selection, a timestamp-based fasting timer with local notifications, meal tracking, a daily summary with goal status, and a history of previous days. Product features are implemented issue by issue.
+The repository currently has local login with a persistent session, fasting protocol selection, a timestamp-based fasting timer with local notifications, meal tracking, a daily summary with goal status, a history of previous days, and a weekly fasting chart. Product features are implemented issue by issue.
 
 ## Screenshots
 
@@ -21,12 +21,9 @@ Done:
 - Meal tracking: add, edit, and delete today's meals with a name and calories. The meal time is recorded automatically, and meals are stored in SQLite so they remain after restarting the app.
 - Daily summary on Today: calories against a daily calorie limit, fasting time for the day, and whether the day is within goal. Ended fasts are stored in SQLite, so the totals remain after restarting the app.
 - History: previous days with records, newest first, grouped into this week, last week, and earlier. Each day opens a read-only summary with its fasts, meals, and goal status.
+- Weekly chart: fasting hours for each of the last seven complete days against the fasting goal, with the average fast, the number of days within goal, and the best day.
 
-Planned from the challenge specification:
-
-- Weekly chart
-
-Remaining work is tracked in [GitHub Issues](https://github.com/matheusmedrado/desafioMamba/issues).
+Release preparation is tracked in [GitHub Issues](https://github.com/matheusmedrado/desafioMamba/issues).
 
 ## Tech Stack
 
@@ -63,7 +60,7 @@ Rules the code follows:
 - Android uses inexact alarms. The timer remains correct if Android delays or does not deliver a notification.
 - A fast is copied to SQLite when it ends. The copy is keyed by the fast id and repeated whenever the current fast loads, so it also recovers an app closed between the two writes.
 - The daily summary is calculated in plain Dart from today's meals, the fasts that ended today, the current fast, and the calorie limit. It recalculates on every timer tick, so a running fast's time stays current.
-- History uses the same daily goal rule as Today. It groups earlier meals and ended fasts by local day in plain Dart, and each day is summarized with `DaySummary`.
+- History uses the same daily goal rule as Today. It groups earlier meals and ended fasts by local day in plain Dart, and each day is summarized with `DaySummary`. The weekly summary is built from those same days.
 
 ## Project Structure
 
@@ -98,8 +95,8 @@ lib/
       data/             CalorieLimitRepository over shared_preferences
       presentation/     Today summary providers, Your day section, calorie limit sheet
     history/
-      domain/           HistoryDay grouping by local day
-      presentation/     HistoryController, History screen, day summary screen
+      domain/           HistoryDay grouping by local day, WeekSummary
+      presentation/     HistoryController, History screen with Days and Week views, day summary screen, weekly chart
 test/
   app/                  App smoke test
   core/                 Clock, database upgrade, local day, and formatting tests
@@ -107,7 +104,7 @@ test/
   features/fasting/     Protocol, timer, persistence, completed fasts, notification, controller, and selection flow tests
   features/meals/       Validator, SQLite repository, controller, and Meals screen tests
   features/dashboard/   Goal rule, calorie limit, summary provider, and Your day section tests
-  features/history/     Day grouping, controller, and History screen tests
+  features/history/     Day grouping, week summary, controller, History screen, and Week view tests
 pubspec.yaml            Package metadata and dependencies
 pubspec.lock            Resolved dependency versions
 ```
@@ -137,7 +134,7 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the Today tab shows the selected protocol, timer controls, and a summary of the day with calories, fasting time, and goal status. Tap Calories in that summary to change the daily calorie limit. The Meals tab lists today's meals and adds, edits, or deletes them. The History tab lists previous days and opens a summary for each one. Android 13 and newer ask for notification permission when the first fast starts.
+The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the Today tab shows the selected protocol, timer controls, and a summary of the day with calories, fasting time, and goal status. Tap Calories in that summary to change the daily calorie limit. The Meals tab lists today's meals and adds, edits, or deletes them. The History tab lists previous days in the Days view and shows the weekly fasting chart in the Week view. Android 13 and newer ask for notification permission when the first fast starts.
 
 ## Building the APK
 
@@ -258,6 +255,16 @@ Reason: reusing `DaySummary` keeps History and Today consistent by construction.
 
 Trade-off: all earlier records are loaded at once. That is small for a personal tracker, but a long history would need paging or a date range. Days with no records are not shown, and past meals cannot be edited.
 
+### Weekly chart
+
+Problem: the challenge asks for a simple weekly chart of calories or fasting time, and the chart dependency had to be chosen.
+
+Decision: the Week view in History charts fasting hours for the seven complete days before today, built from standard widgets (`Row`, `Stack`, and sized `Container` bars) with no chart package. Each bar is colored by whether a fast that day reached its own target. A dashed line marks the goal of the currently selected protocol. The "days within goal" count uses the full daily goal from `DaySummary`, and the average is per fast. The Days view shows the same count and average at the top.
+
+Reason: fasting time is the app's main metric and matches the mockup. Seven fixed bars need only proportional heights, so a chart package or custom painting would add code and a dependency without a real benefit. `WeekSummary` is built from the History days, so the chart and the list always agree.
+
+Trade-off: no touch interaction, animation, or other time ranges. The goal line uses the current protocol, while bar colors use the target of each day's fasts, so after a protocol change the two can differ.
+
 ### Other choices
 
 - The protocol choice is one small record: the selected protocol id plus the custom fasting hours. Custom hours are kept when a preset is selected again, so the custom card stays editable. Presets are constants in code, since they never change and there is nothing to store for them.
@@ -283,7 +290,7 @@ Trade-off: all earlier records are loaded at once. That is small for a personal 
 - If saving an ended fast to SQLite fails, the error is logged and the copy is retried the next time the current fast loads. If it still fails when a new fast starts, that ended fast is missing from the day totals and History.
 - History loads all earlier records at once and does not page.
 - If the app stays in the foreground past midnight, History and the daily summary update the next time the app returns to the foreground.
-- The weekly chart is pending.
+- The weekly chart covers only the last seven complete days. Its goal line follows the current protocol.
 - Final signing, release testing, and delivery links are pending.
 
 ## What I Would Improve With More Time

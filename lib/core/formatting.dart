@@ -30,6 +30,16 @@ String formatDayLabel(DateTime time) {
       '${_months[local.month - 1]}';
 }
 
+/// Formats two local days as a range, such as "2 – 8 Sep".
+String formatDayRange(DateTime start, DateTime end) {
+  final first = start.toLocal();
+  final last = end.toLocal();
+  final lastLabel = '${last.day} ${_months[last.month - 1]}';
+  return first.month == last.month && first.year == last.year
+      ? '${first.day} – $lastLabel'
+      : '${first.day} ${_months[first.month - 1]} – $lastLabel';
+}
+
 /// Short local weekday, such as "Wed".
 String formatWeekdayShort(DateTime time) =>
     _weekdays[time.toLocal().weekday - 1].substring(0, 3);

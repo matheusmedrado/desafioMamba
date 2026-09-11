@@ -9,8 +9,12 @@ import '../../../core/formatting.dart';
 import '../../dashboard/domain/day_summary.dart';
 import '../../fasting/domain/fasting_protocol.dart';
 import '../domain/history_day.dart';
+import '../domain/week_summary.dart';
 import 'history_controller.dart';
 import 'history_day_screen.dart';
+import 'week_view.dart';
+
+enum _HistoryView { days, week }
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -21,6 +25,8 @@ class HistoryScreen extends ConsumerStatefulWidget {
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen>
     with WidgetsBindingObserver {
+  var _view = _HistoryView.days;
+
   @override
   void initState() {
     super.initState();
@@ -46,7 +52,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
   @override
   Widget build(BuildContext context) {
     final history = ref.watch(historyControllerProvider);
-    final now = ref.read(clockProvider).now();
 
     return Scaffold(
       appBar: AppBar(
@@ -54,25 +59,136 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
         titleSpacing: 24,
         title: const Text('History'),
       ),
-      body: switch (history) {
-        AsyncData(:final value) when value.isEmpty => const _EmptyHistory(),
-        AsyncData(:final value) => _HistoryList(days: value, now: now),
-        AsyncError() => _HistoryError(onRetry: _refresh),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
+            child: _ViewSwitch(
+              selected: _view,
+              onChanged: (view) => setState(() => _view = view),
+            ),
+          ),
+          Expanded(
+            child: switch (history) {
+              AsyncData(:final value) => _content(value),
+              AsyncError() => _HistoryError(onRetry: _refresh),
+              _ => const Center(child: CircularProgressIndicator()),
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _content(List<HistoryDay> days) {
+    final now = ref.read(clockProvider).now();
+    final week = WeekSummary.fromHistory(days, now);
+    return switch (_view) {
+      _HistoryView.week => WeekView(summary: week),
+      _HistoryView.days when days.isEmpty => const _EmptyHistory(),
+      _HistoryView.days => _HistoryList(days: days, week: week, now: now),
+    };
+  }
+}
+
+class _ViewSwitch extends StatelessWidget {
+  const _ViewSwitch({required this.selected, required this.onChanged});
+
+  final _HistoryView selected;
+  final ValueChanged<_HistoryView> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: MambaColors.surfaceElevated,
+        border: Border.all(color: MambaColors.border),
+        borderRadius: BorderRadius.circular(MambaRadius.medium),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Row(
+          children: [
+            Expanded(
+              child: _ViewTab(
+                label: 'Days',
+                selected: selected == _HistoryView.days,
+                onTap: () => onChanged(_HistoryView.days),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: _ViewTab(
+                label: 'Week',
+                selected: selected == _HistoryView.week,
+                onTap: () => onChanged(_HistoryView.week),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ViewTab extends StatelessWidget {
+  const _ViewTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Material(
+        color: selected ? MambaColors.surface : Colors.transparent,
+        borderRadius: BorderRadius.circular(MambaRadius.small),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(MambaRadius.small),
+          child: SizedBox(
+            height: 40,
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontFamily: 'Manrope',
+                  fontSize: 14,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: selected
+                      ? MambaColors.textPrimary
+                      : MambaColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
 class _HistoryList extends StatelessWidget {
-  const _HistoryList({required this.days, required this.now});
+  const _HistoryList({
+    required this.days,
+    required this.week,
+    required this.now,
+  });
 
   final List<HistoryDay> days;
+  final WeekSummary week;
   final DateTime now;
 
   @override
   Widget build(BuildContext context) {
-    final children = <Widget>[];
+    final children = <Widget>[_WeekHeader(week)];
     HistoryGroup? group;
     for (final day in days) {
       final dayGroup = historyGroupOf(day.day, now);
@@ -88,6 +204,80 @@ class _HistoryList extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       children: children,
+    );
+  }
+}
+
+class _WeekHeader extends StatelessWidget {
+  const _WeekHeader(this.week);
+
+  final WeekSummary week;
+
+  @override
+  Widget build(BuildContext context) {
+    final average = week.averageFast;
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: MambaColors.border)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(0, 8, 0, 16),
+        child: Row(
+          children: [
+            Expanded(
+              child: _HeaderStat(
+                label: 'Last 7 days',
+                value: '${week.daysWithinGoal}',
+                unit: '/7 goals',
+              ),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: _HeaderStat(
+                label: 'Average fast',
+                value: average == null ? '—' : formatHoursMinutes(average),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderStat extends StatelessWidget {
+  const _HeaderStat({required this.label, required this.value, this.unit});
+
+  final String label;
+  final String value;
+  final String? unit;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: textTheme.labelSmall),
+        const SizedBox(height: 2),
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: value),
+              if (unit != null)
+                TextSpan(
+                  text: unit,
+                  style: textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+            ],
+          ),
+          style: textTheme.titleLarge?.copyWith(
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
     );
   }
 }

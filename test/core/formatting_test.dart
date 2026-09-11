@@ -7,6 +7,17 @@ void main() {
     expect(formatDayLabel(DateTime(2026, 1, 31)), 'Saturday, 31 Jan');
   });
 
+  test('formatDayRange names the month once when it does not change', () {
+    expect(
+      formatDayRange(DateTime(2026, 9, 2), DateTime(2026, 9, 8)),
+      '2 – 8 Sep',
+    );
+    expect(
+      formatDayRange(DateTime(2026, 8, 28), DateTime(2026, 9, 3)),
+      '28 Aug – 3 Sep',
+    );
+  });
+
   test('formatWeekdayShort uses three letters', () {
     expect(formatWeekdayShort(DateTime(2026, 9, 8)), 'Tue');
     expect(formatWeekdayShort(DateTime(2026, 9, 13)), 'Sun');
