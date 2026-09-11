@@ -1,35 +1,37 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/clock.dart';
-import '../data/session_repository.dart';
-import '../domain/user_session.dart';
+import '../data/auth_repository.dart';
+import '../domain/auth_user.dart';
 
-/// Holds the current session. `null` means signed out.
-///
-/// The initial value is loaded from storage, which is what restores the
-/// session after the app is closed and reopened.
-class AuthController extends AsyncNotifier<UserSession?> {
+/// The signed-in account, restored by Firebase after a restart.
+class AuthController extends StreamNotifier<AuthUser?> {
   @override
-  Future<UserSession?> build() {
-    return ref.watch(sessionRepositoryProvider).load();
+  Stream<AuthUser?> build() {
+    return ref.watch(authRepositoryProvider).authStateChanges();
   }
 
-  /// Local authentication: any input that passed form validation signs in.
-  /// The password is not stored or checked against anything.
-  Future<void> login({required String email, required String password}) async {
-    final session = UserSession(
-      email: email.trim().toLowerCase(),
-      signedInAt: ref.read(clockProvider).now().toUtc(),
-    );
-    await ref.read(sessionRepositoryProvider).save(session);
-    state = AsyncData(session);
+  Future<void> signIn({required String email, required String password}) {
+    return ref
+        .read(authRepositoryProvider)
+        .signIn(email: _normalize(email), password: password);
   }
 
-  Future<void> logout() async {
-    await ref.read(sessionRepositoryProvider).clear();
-    state = const AsyncData(null);
+  Future<void> signUp({required String email, required String password}) {
+    return ref
+        .read(authRepositoryProvider)
+        .signUp(email: _normalize(email), password: password);
   }
+
+  Future<void> sendPasswordReset(String email) {
+    return ref
+        .read(authRepositoryProvider)
+        .sendPasswordReset(_normalize(email));
+  }
+
+  Future<void> signOut() => ref.read(authRepositoryProvider).signOut();
+
+  static String _normalize(String email) => email.trim().toLowerCase();
 }
 
 final authControllerProvider =
-    AsyncNotifierProvider<AuthController, UserSession?>(AuthController.new);
+    StreamNotifierProvider<AuthController, AuthUser?>(AuthController.new);

@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../auth/data/session_repository.dart';
+import '../../../core/preferences.dart';
 import '../domain/calorie_limit.dart';
 
 /// Owns the persisted daily calorie limit.
