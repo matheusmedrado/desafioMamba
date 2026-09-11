@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/mamba_icon.dart';
 import '../../../app/theme.dart';
 import '../../../core/formatting.dart';
 import '../../meals/presentation/meals_controller.dart';
@@ -51,7 +52,6 @@ class _DaySummarySectionState extends ConsumerState<DaySummarySection>
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final summary = ref.watch(todaySummaryProvider);
 
     return Column(
@@ -59,11 +59,21 @@ class _DaySummarySectionState extends ConsumerState<DaySummarySection>
       children: [
         Row(
           children: [
-            Expanded(child: Text('Your day', style: textTheme.titleSmall)),
+            const Expanded(
+              child: Text(
+                'Your day',
+                style: TextStyle(
+                  fontFamily: 'Manrope',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: MambaColors.textPrimary,
+                ),
+              ),
+            ),
             if (summary.value case final value?) _StatusChip(value.status),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         if (summary.value case final value?)
           _SummaryContent(
             summary: value,
@@ -75,7 +85,7 @@ class _DaySummarySectionState extends ConsumerState<DaySummarySection>
         else if (summary.hasError)
           _SummaryError(onRetry: _retry)
         else
-          const SizedBox(height: 72),
+          const SizedBox(height: 90),
       ],
     );
   }
@@ -89,9 +99,9 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, label) = switch (status) {
-      DayGoalStatus.within => (Icons.check, 'Within goal'),
-      DayGoalStatus.outside => (Icons.flag_outlined, 'Outside goal'),
-      DayGoalStatus.inProgress => (Icons.schedule, 'In progress'),
+      DayGoalStatus.within => (MambaIcons.check, 'Within goal'),
+      DayGoalStatus.outside => (MambaIcons.flag, 'Outside goal'),
+      DayGoalStatus.inProgress => (MambaIcons.clock, 'In progress'),
     };
 
     return DecoratedBox(
@@ -104,7 +114,7 @@ class _StatusChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: MambaColors.textPrimary),
+            MambaIcon(icon, size: 14, color: MambaColors.textPrimary),
             const SizedBox(width: 6),
             Text(
               label,
@@ -129,31 +139,42 @@ class _SummaryContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _Stat(
-                label: 'Calories',
-                value: formatThousands(summary.calories),
-                unit: '/ ${formatThousands(summary.calorieLimit)} kcal',
-                onTap: onChangeLimit,
-                tapLabel: 'Change calorie limit',
+        DecoratedBox(
+          decoration: const BoxDecoration(
+            color: MambaColors.surface,
+            borderRadius: BorderRadius.all(Radius.circular(MambaRadius.medium)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _Stat(
+                      label: 'Calories',
+                      value: formatThousands(summary.calories),
+                      unit: '/ ${formatThousands(summary.calorieLimit)} kcal',
+                      onTap: onChangeLimit,
+                      tapLabel: 'Change calorie limit',
+                    ),
+                  ),
+                  const VerticalDivider(width: 33),
+                  Expanded(
+                    child: _Stat(
+                      label: 'Fasted today',
+                      value: formatHoursMinutes(summary.fastingTime),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 24),
-            Expanded(
-              child: _Stat(
-                label: 'Fasted today',
-                value: formatHoursMinutes(summary.fastingTime),
-              ),
-            ),
-          ],
+          ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Text(
           _statusMessage(summary),
-          style: Theme.of(context).textTheme.bodySmall,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12),
         ),
       ],
     );
@@ -177,7 +198,6 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final tappable = onTap != null;
 
     final content = Column(
@@ -185,12 +205,24 @@ class _Stat extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text(label, style: textTheme.labelSmall),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: 'Manrope',
+                  fontSize: 12,
+                  letterSpacing: 0.24,
+                  color: MambaColors.textSecondary,
+                ),
+              ),
+            ),
             if (tappable) ...[
               const SizedBox(width: 4),
-              const Icon(
-                Icons.edit_outlined,
-                size: 14,
+              const MambaIcon(
+                MambaIcons.pencil,
+                size: 12,
                 color: MambaColors.textSecondary,
               ),
             ],
@@ -204,14 +236,23 @@ class _Stat extends StatelessWidget {
               if (unit != null)
                 TextSpan(
                   text: ' $unit',
-                  style: textTheme.labelMedium?.copyWith(letterSpacing: 0),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0,
+                    color: MambaColors.textSecondary,
+                  ),
                 ),
             ],
           ),
-          style: textTheme.headlineMedium?.copyWith(
+          style: const TextStyle(
+            fontFamily: 'Manrope',
             fontSize: 25,
+            fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
-            fontFeatures: const [FontFeature.tabularFigures()],
+            height: 1.15,
+            color: MambaColors.textPrimary,
+            fontFeatures: [FontFeature.tabularFigures()],
           ),
         ),
       ],
@@ -223,10 +264,7 @@ class _Stat extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(MambaRadius.small),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: content,
-        ),
+        child: content,
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../features/fasting/presentation/fasting_home_screen.dart';
 import '../features/history/presentation/history_screen.dart';
 import '../features/meals/presentation/meals_screen.dart';
+import 'mamba_icon.dart';
 import 'theme.dart';
 
 /// Signed-in tabs. Each tab is built on first open and then kept.
@@ -18,6 +19,12 @@ class _HomeShellState extends State<HomeShell> {
     FastingHomeScreen(),
     MealsScreen(),
     HistoryScreen(),
+  ];
+
+  static const _tabs = [
+    (MambaIcons.timer, 'Today'),
+    (MambaIcons.meals, 'Meals'),
+    (MambaIcons.calendar, 'History'),
   ];
 
   var _index = 0;
@@ -42,26 +49,95 @@ class _HomeShellState extends State<HomeShell> {
       ),
       bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: MambaColors.border)),
+          color: MambaColors.background,
+          border: Border(top: BorderSide(color: MambaColors.surfaceElevated)),
         ),
-        child: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: _select,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.timer_outlined),
-              selectedIcon: Icon(Icons.timer),
-              label: 'Today',
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 72,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Row(
+                children: [
+                  for (final (index, (icon, label)) in _tabs.indexed)
+                    Expanded(
+                      child: _NavItem(
+                        icon: icon,
+                        label: label,
+                        selected: index == _index,
+                        onTap: () => _select(index),
+                      ),
+                    ),
+                ],
+              ),
             ),
-            NavigationDestination(
-              icon: Icon(Icons.restaurant_outlined),
-              selectedIcon: Icon(Icons.restaurant),
-              label: 'Meals',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.calendar_today_outlined),
-              selectedIcon: Icon(Icons.calendar_today),
-              label: 'History',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final MambaIcons icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected
+        ? MambaColors.textPrimary
+        : MambaColors.textSecondary;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            if (selected)
+              Positioned(
+                top: -4,
+                child: Container(
+                  width: 20,
+                  height: 2,
+                  color: MambaColors.purpleSoft,
+                ),
+              ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                MambaIcon(
+                  icon,
+                  color: color,
+                  strokeWidth: selected ? 2.4 : 1.8,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: 'Manrope',
+                    fontSize: 12,
+                    height: 1,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                    color: color,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Color tokens taken from the approved mockups.
+/// Color tokens for the app.
 abstract final class MambaColors {
   static const background = Color(0xFF0B0B0D);
   static const surface = Color(0xFF141418);
@@ -16,6 +16,9 @@ abstract final class MambaColors {
   static const yellow = Color(0xFFF2C94C);
   static const yellowDim = Color(0xFFD4A72C);
 
+  static const pathTrack = Color(0xFF24212A);
+  static const pathTrackIdle = Color(0xFF302038);
+
   static const textPrimary = Color(0xFFF5F2F7);
   static const textSecondary = Color(0xFFA9A3B2);
 
@@ -30,8 +33,7 @@ abstract final class MambaRadius {
   static const large = 24.0;
 }
 
-/// Dark theme matching the mockups. Primary buttons are off-white, purple is
-/// reserved for progress and selection, yellow for very small brand marks.
+/// Dark theme: off-white primary buttons, purple for progress and selection.
 ThemeData buildMambaTheme() {
   const colorScheme = ColorScheme.dark(
     surface: MambaColors.background,
@@ -229,28 +231,6 @@ ThemeData buildMambaTheme() {
           top: Radius.circular(MambaRadius.large),
         ),
       ),
-    ),
-    navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: MambaColors.surface,
-      indicatorColor: MambaColors.purpleTint,
-      indicatorShape: const StadiumBorder(),
-      height: 72,
-      labelTextStyle: WidgetStateProperty.resolveWith((states) {
-        final selected = states.contains(WidgetState.selected);
-        return TextStyle(
-          fontFamily: 'Manrope',
-          fontSize: 12,
-          fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-          color: selected ? MambaColors.textPrimary : MambaColors.textSecondary,
-        );
-      }),
-      iconTheme: WidgetStateProperty.resolveWith((states) {
-        final selected = states.contains(WidgetState.selected);
-        return IconThemeData(
-          size: 24,
-          color: selected ? MambaColors.textPrimary : MambaColors.textSecondary,
-        );
-      }),
     ),
     snackBarTheme: const SnackBarThemeData(
       backgroundColor: MambaColors.surfaceElevated,

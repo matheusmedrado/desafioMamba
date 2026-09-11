@@ -3,18 +3,35 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/brand_header.dart';
+import '../../../app/mamba_icon.dart';
 import '../../../app/theme.dart';
 import '../../../core/clock.dart';
-import '../../../features/auth/presentation/auth_controller.dart';
+import '../../../core/formatting.dart';
+import '../../auth/presentation/settings_sheet.dart';
 import '../../dashboard/presentation/day_summary_section.dart';
 import '../domain/fasting_protocol.dart';
 import '../domain/fasting_session.dart';
 import 'fasting_controller.dart';
 import 'protocol_controller.dart';
 import 'protocol_select_screen.dart';
-import 'widgets/fasting_window_bar.dart';
+import 'widgets/fasting_path.dart';
 
-/// Main signed-in screen for the fasting timer feature.
+const _heroNumber = TextStyle(
+  fontFamily: 'Manrope',
+  fontSize: 76,
+  fontWeight: FontWeight.w800,
+  letterSpacing: -4.9,
+  height: 1.05,
+  color: MambaColors.textPrimary,
+  fontFeatures: [FontFeature.tabularFigures()],
+);
+
+const _secondary = TextStyle(
+  fontFamily: 'Manrope',
+  color: MambaColors.textSecondary,
+);
+
 class FastingHomeScreen extends ConsumerStatefulWidget {
   const FastingHomeScreen({super.key});
 
@@ -26,6 +43,9 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
     with WidgetsBindingObserver {
   var _actionInProgress = false;
 
+  FastingController get _controller =>
+      ref.read(fastingControllerProvider.notifier);
+
   @override
   void initState() {
     super.initState();
@@ -34,15 +54,14 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = ref.read(fastingControllerProvider.notifier);
     switch (state) {
       case AppLifecycleState.resumed:
-        unawaited(controller.restore());
+        unawaited(_controller.restore());
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
-        controller.pauseTicker();
+        _controller.pauseTicker();
     }
   }
 
@@ -54,66 +73,67 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final email = ref.watch(authControllerProvider).value?.email ?? '';
-    final protocol =
-        ref.watch(protocolControllerProvider).value?.selected ??
-        ProtocolSettings.defaults.selected;
+    final protocol = ref.watch(selectedProtocolProvider);
     final fastingState = ref.watch(fastingControllerProvider);
+    final now = ref.read(clockProvider).now();
+    final session = fastingState.value;
+    final active = session != null && session.status != FastingStatus.ended
+        ? session
+        : null;
 
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _Header(
-                email: email,
-                onLogout: () =>
-                    ref.read(authControllerProvider.notifier).logout(),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: BrandHeader(
+                actionIcon: MambaIcons.settings,
+                actionLabel: 'Settings',
+                onAction: () => showSettingsSheet(context),
               ),
-              const SizedBox(height: 32),
-              if (fastingState.isLoading && !fastingState.hasValue)
-                const _LoadingContent()
-              else if (fastingState.hasError && !fastingState.hasValue)
-                _ErrorContent(
-                  onRetry: () => unawaited(
-                    ref.read(fastingControllerProvider.notifier).restore(),
-                  ),
-                )
-              else
-                _TimerContent(
-                  session: fastingState.value,
-                  protocol: protocol,
-                  now: ref.read(clockProvider).now(),
-                  actionInProgress: _actionInProgress,
-                  onStart: () =>
-                      _run(ref.read(fastingControllerProvider.notifier).start),
-                  onPause: () =>
-                      _run(ref.read(fastingControllerProvider.notifier).pause),
-                  onResume: () =>
-                      _run(ref.read(fastingControllerProvider.notifier).resume),
-                  onEnd: () =>
-                      _run(ref.read(fastingControllerProvider.notifier).end),
-                  onChangeProtocol: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const ProtocolSelectScreen(),
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 32),
-              const DaySummarySection(),
-              const SizedBox(height: 24),
-              Center(
-                child: Text(
-                  'All fasting data stays on this device.',
-                  style: textTheme.bodySmall,
-                  textAlign: TextAlign.center,
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 10, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _DayHeading(now: now, compact: active != null),
+                    if (fastingState.isLoading && !fastingState.hasValue)
+                      const _LoadingContent()
+                    else if (fastingState.hasError && !fastingState.hasValue)
+                      _ErrorContent(
+                        onRetry: () => unawaited(_controller.restore()),
+                      )
+                    else if (active == null)
+                      _IdleHero(
+                        protocol: protocol,
+                        now: now,
+                        busy: _actionInProgress,
+                        onStart: () => _run(_controller.start),
+                        onChangeProtocol: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const ProtocolSelectScreen(),
+                          ),
+                        ),
+                      )
+                    else
+                      _ActiveHero(
+                        session: active,
+                        now: now,
+                        busy: _actionInProgress,
+                        onPause: () => _run(_controller.pause),
+                        onResume: () => _run(_controller.resume),
+                        onEnd: () => _run(_controller.end),
+                      ),
+                    const SizedBox(height: 20),
+                    const DaySummarySection(),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -135,353 +155,142 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.email, required this.onLogout});
+class _DayHeading extends StatelessWidget {
+  const _DayHeading({required this.now, required this.compact});
 
-  final String email;
-  final VoidCallback onLogout;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Image.asset(
-                'assets/images/mamba-wordmark.webp',
-                height: 32,
-                semanticLabel: 'Mamba',
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'FAST TRACKER',
-                style: textTheme.labelSmall?.copyWith(letterSpacing: 1.2),
-              ),
-              const SizedBox(height: 18),
-              Text('Signed in as', style: textTheme.labelMedium),
-              const SizedBox(height: 4),
-              Text(email, style: textTheme.titleMedium),
-            ],
-          ),
-        ),
-        IconButton(
-          onPressed: onLogout,
-          tooltip: 'Log out',
-          icon: const Icon(Icons.logout),
-        ),
-      ],
-    );
-  }
-}
-
-class _TimerContent extends StatelessWidget {
-  const _TimerContent({
-    required this.session,
-    required this.protocol,
-    required this.now,
-    required this.actionInProgress,
-    required this.onStart,
-    required this.onPause,
-    required this.onResume,
-    required this.onEnd,
-    required this.onChangeProtocol,
-  });
-
-  final FastingSession? session;
-  final FastingProtocol protocol;
   final DateTime now;
-  final bool actionInProgress;
-  final VoidCallback onStart;
-  final VoidCallback onPause;
-  final VoidCallback onResume;
-  final VoidCallback onEnd;
-  final VoidCallback onChangeProtocol;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    return session == null
-        ? _ReadyToStart(
-            protocol: protocol,
-            actionInProgress: actionInProgress,
-            onStart: onStart,
-            onChangeProtocol: onChangeProtocol,
-          )
-        : _ActiveFast(
-            session: session!,
-            now: now,
-            actionInProgress: actionInProgress,
-            onStart: onStart,
-            onPause: onPause,
-            onResume: onResume,
-            onEnd: onEnd,
-            onChangeProtocol: onChangeProtocol,
-          );
-  }
-}
-
-class _ReadyToStart extends StatelessWidget {
-  const _ReadyToStart({
-    required this.protocol,
-    required this.actionInProgress,
-    required this.onStart,
-    required this.onChangeProtocol,
-  });
-
-  final FastingProtocol protocol;
-  final bool actionInProgress;
-  final VoidCallback onStart;
-  final VoidCallback onChangeProtocol;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Ready when you are.', style: textTheme.headlineMedium),
-        const SizedBox(height: 8),
-        Text(
-          'Start a fast and let the timer keep your place through the day.',
-          style: textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 24),
-        _ProtocolCard(protocol: protocol),
-        const SizedBox(height: 16),
-        FilledButton.icon(
-          onPressed: actionInProgress ? null : onStart,
-          icon: const Icon(Icons.play_arrow),
-          label: Text(actionInProgress ? 'Starting...' : 'Start fast'),
-        ),
-        const SizedBox(height: 4),
-        Align(
-          alignment: Alignment.center,
-          child: TextButton(
-            onPressed: actionInProgress ? null : onChangeProtocol,
-            child: const Text('Change protocol'),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ActiveFast extends StatelessWidget {
-  const _ActiveFast({
-    required this.session,
-    required this.now,
-    required this.actionInProgress,
-    required this.onStart,
-    required this.onPause,
-    required this.onResume,
-    required this.onEnd,
-    required this.onChangeProtocol,
-  });
-
-  final FastingSession session;
-  final DateTime now;
-  final bool actionInProgress;
-  final VoidCallback onStart;
-  final VoidCallback onPause;
-  final VoidCallback onResume;
-  final VoidCallback onEnd;
-  final VoidCallback onChangeProtocol;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final elapsed = session.elapsedAt(now);
-    final remaining = session.remainingAt(now);
-    final goalReached = session.goalReachedAt(now);
-    final progress = (elapsed.inMilliseconds / session.target.inMilliseconds)
-        .clamp(0.0, 1.0);
-
-    final status = switch (session.status) {
-      FastingStatus.running when goalReached => 'Goal reached',
-      FastingStatus.running => 'Fasting',
-      FastingStatus.paused => 'Paused',
-      FastingStatus.ended => 'Fast ended',
-    };
-
-    final message = switch (session.status) {
-      FastingStatus.running when goalReached =>
-        'You reached your planned fasting window.',
-      FastingStatus.running => 'Keep going. You are on track.',
-      FastingStatus.paused => 'Your elapsed time is frozen until you resume.',
-      FastingStatus.ended when goalReached => 'Nice work completing your goal.',
-      FastingStatus.ended => 'This fast ended before the planned window.',
-    };
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(status, style: textTheme.headlineMedium),
-        const SizedBox(height: 8),
-        Text(message, style: textTheme.bodyMedium),
-        const SizedBox(height: 24),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      _sessionProtocolName(session),
-                      style: textTheme.titleMedium,
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${session.target.inHours}h target',
-                      style: textTheme.labelMedium,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Center(
-                  child: Semantics(
-                    label: 'Elapsed ${_formatDuration(elapsed)}',
-                    child: Text(
-                      _formatDuration(elapsed),
-                      style: textTheme.headlineMedium?.copyWith(
-                        fontSize: 42,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Center(child: Text('Elapsed', style: textTheme.labelMedium)),
-                const SizedBox(height: 24),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(MambaRadius.small),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 8,
-                    backgroundColor: MambaColors.surfaceElevated,
-                    color: goalReached
-                        ? MambaColors.success
-                        : MambaColors.purple,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _TimeStat(
-                        label: 'Elapsed',
-                        value: _formatDuration(elapsed),
-                      ),
-                    ),
-                    Expanded(
-                      child: _TimeStat(
-                        label: 'Remaining',
-                        value: _formatDuration(remaining),
-                        alignment: CrossAxisAlignment.end,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+    return Padding(
+      padding: EdgeInsets.only(bottom: compact ? 12 : 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            formatGreeting(now),
+            style: TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: compact ? 20 : 24,
+              fontWeight: FontWeight.w800,
+              letterSpacing: compact ? -0.9 : -1.08,
+              height: 1.15,
+              color: MambaColors.textPrimary,
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        if (session.status == FastingStatus.running)
-          _RunningActions(
-            disabled: actionInProgress,
-            onPause: onPause,
-            onEnd: onEnd,
-          )
-        else if (session.status == FastingStatus.paused)
-          _PausedActions(
-            disabled: actionInProgress,
-            onResume: onResume,
-            onEnd: onEnd,
-          )
-        else
-          FilledButton.icon(
-            onPressed: actionInProgress ? null : onStart,
-            icon: const Icon(Icons.replay),
-            label: Text(actionInProgress ? 'Starting...' : 'Start new fast'),
-          ),
-        const SizedBox(height: 4),
-        Align(
-          alignment: Alignment.center,
-          child: TextButton(
-            onPressed: actionInProgress ? null : onChangeProtocol,
-            child: const Text('Change protocol for the next fast'),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ProtocolCard extends StatelessWidget {
-  const _ProtocolCard({required this.protocol});
-
-  final FastingProtocol protocol;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(protocol.name, style: textTheme.titleLarge),
-                const SizedBox(width: 10),
-                Text(protocol.tag, style: textTheme.labelMedium),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(protocol.description, style: textTheme.bodySmall),
-            const SizedBox(height: 16),
-            FastingWindowBar(fastingHours: protocol.fastingHours),
-          ],
-        ),
+          const SizedBox(height: 5),
+          Text(formatDayLabel(now), style: _secondary.copyWith(fontSize: 12)),
+        ],
       ),
     );
   }
 }
 
-class _RunningActions extends StatelessWidget {
-  const _RunningActions({
-    required this.disabled,
-    required this.onPause,
-    required this.onEnd,
-  });
+/// Scales a large number down instead of overflowing.
+class _FitWidth extends StatelessWidget {
+  const _FitWidth({required this.child});
 
-  final bool disabled;
-  final VoidCallback onPause;
-  final VoidCallback onEnd;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: child,
+    );
+  }
+}
+
+class _IdleHero extends StatelessWidget {
+  const _IdleHero({
+    required this.protocol,
+    required this.now,
+    required this.busy,
+    required this.onStart,
+    required this.onChangeProtocol,
+  });
+
+  final FastingProtocol protocol;
+  final DateTime now;
+  final bool busy;
+  final VoidCallback onStart;
+  final VoidCallback onChangeProtocol;
+
+  @override
+  Widget build(BuildContext context) {
+    final finish = now.add(protocol.target);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: disabled ? null : onPause,
-            icon: const Icon(Icons.pause),
-            label: const Text('Pause fast'),
+        Text(
+          'Your next fast',
+          style: _secondary.copyWith(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 3),
+        _FitWidth(
+          child: Text(
+            '${protocol.fastingHours.toString().padLeft(2, '0')}:00',
+            style: _heroNumber,
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: disabled ? null : onEnd,
-            icon: const Icon(Icons.stop),
-            label: const Text('End fast'),
+        const SizedBox(height: 4),
+        Text(
+          '${protocol.fastingHours}h fasting / ${protocol.eatingHours}h eating',
+          style: _secondary.copyWith(fontSize: 13),
+        ),
+        const SizedBox(height: 8),
+        Semantics(
+          label:
+              'Not fasting. Planned fasting duration '
+              '${protocol.fastingHours} hours.',
+          child: const ExcludeSemantics(
+            child: FastingPath(progress: 0, idle: true),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _TimeFacts(
+          start: const _TimeFact(label: 'If you start', value: 'Now'),
+          end: _TimeFact(
+            label: 'You finish',
+            value: formatClockTime(finish),
+            suffix: formatRelativeDay(finish, now).toLowerCase(),
+            alignEnd: true,
+          ),
+        ),
+        const SizedBox(height: 20),
+        FilledButton.icon(
+          onPressed: busy ? null : onStart,
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(60),
+            textStyle: const TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          icon: const MambaIcon(
+            MambaIcons.timer,
+            size: 20,
+            color: MambaColors.background,
+          ),
+          label: Text(busy ? 'Starting...' : 'Start fast'),
+        ),
+        const SizedBox(height: 2),
+        Center(
+          child: TextButton.icon(
+            onPressed: busy ? null : onChangeProtocol,
+            style: TextButton.styleFrom(
+              foregroundColor: MambaColors.textSecondary,
+            ),
+            icon: const MambaIcon(
+              MambaIcons.sliders,
+              size: 18,
+              color: MambaColors.textSecondary,
+            ),
+            label: const Text('Change protocol'),
           ),
         ),
       ],
@@ -489,63 +298,268 @@ class _RunningActions extends StatelessWidget {
   }
 }
 
-class _PausedActions extends StatelessWidget {
-  const _PausedActions({
-    required this.disabled,
+class _ActiveHero extends StatelessWidget {
+  const _ActiveHero({
+    required this.session,
+    required this.now,
+    required this.busy,
+    required this.onPause,
     required this.onResume,
     required this.onEnd,
   });
 
-  final bool disabled;
+  final FastingSession session;
+  final DateTime now;
+  final bool busy;
+  final VoidCallback onPause;
   final VoidCallback onResume;
   final VoidCallback onEnd;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final elapsed = session.elapsedAt(now);
+    final remaining = session.remainingAt(now);
+    final reached = session.goalReachedAt(now);
+    final paused = session.status == FastingStatus.paused;
+    final progress = (elapsed.inMilliseconds / session.target.inMilliseconds)
+        .clamp(0.0, 1.0);
+    final endsAt = session.targetEndAt;
+    final state = paused
+        ? 'Paused'
+        : reached
+        ? 'Goal reached'
+        : 'Fasting now';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: disabled ? null : onResume,
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Resume fast'),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                state,
+                style: const TextStyle(
+                  fontFamily: 'Manrope',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: MambaColors.textPrimary,
+                ),
+              ),
+            ),
+            Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: MambaColors.yellow,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              FastingProtocol.nameFor(session.protocolId, session.target),
+              style: _secondary.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text('Time elapsed', style: _secondary.copyWith(fontSize: 11)),
+        Semantics(
+          label: 'Elapsed ${formatHoursMinutes(elapsed)}',
+          excludeSemantics: true,
+          child: _FitWidth(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(_hoursAndMinutes(elapsed), style: _heroNumber),
+                const SizedBox(width: 6),
+                Text(
+                  ':${elapsed.inSeconds.remainder(60).toString().padLeft(2, '0')}',
+                  style: _secondary.copyWith(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w500,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: disabled ? null : onEnd,
-            icon: const Icon(Icons.stop),
-            label: const Text('End fast'),
+        const SizedBox(height: 4),
+        if (reached)
+          Text(
+            'You can end your fast whenever you’re ready.',
+            style: _secondary.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          )
+        else
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: formatHoursMinutes(remaining)),
+                TextSpan(
+                  text: ' remaining',
+                  style: _secondary.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            style: const TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: MambaColors.textPrimary,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
           ),
+        const SizedBox(height: 8),
+        Semantics(
+          label:
+              '${formatHoursMinutes(elapsed)} elapsed, '
+              '${formatHoursMinutes(remaining)} remaining.',
+          child: ExcludeSemantics(child: FastingPath(progress: progress)),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            '${(progress * 100).round()}% of ${session.target.inHours}h goal',
+            style: _secondary.copyWith(fontSize: 11),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Divider(),
+        const SizedBox(height: 8),
+        _TimeFacts(
+          start: _TimeFact(
+            label: 'Started',
+            value: formatClockTime(session.startedAt),
+            suffix: formatRelativeDay(session.startedAt, now),
+            valueSize: 16,
+            valueWeight: FontWeight.w600,
+          ),
+          end: _TimeFact(
+            label: 'Ends',
+            value: endsAt == null ? '—' : formatClockTime(endsAt),
+            suffix: endsAt == null ? 'paused' : formatRelativeDay(endsAt, now),
+            alignEnd: true,
+            valueSize: 21,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: paused
+                  ? FilledButton(
+                      onPressed: busy ? null : onResume,
+                      child: const Text('Resume'),
+                    )
+                  : ElevatedButton(
+                      onPressed: busy ? null : onPause,
+                      child: const Text('Pause'),
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: reached && !paused
+                  ? FilledButton(
+                      onPressed: busy ? null : onEnd,
+                      child: const Text('End fast'),
+                    )
+                  : ElevatedButton(
+                      onPressed: busy ? null : onEnd,
+                      child: const Text('End fast'),
+                    ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Your session saves whenever you finish.',
+          textAlign: TextAlign.center,
+          style: _secondary.copyWith(fontSize: 12),
         ),
       ],
     );
   }
 }
 
-class _TimeStat extends StatelessWidget {
-  const _TimeStat({
+/// Two time facts side by side: [start] on the left, [end] flush right.
+class _TimeFacts extends StatelessWidget {
+  const _TimeFacts({required this.start, required this.end});
+
+  final Widget start;
+  final Widget end;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(child: start),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Align(alignment: Alignment.centerRight, child: end),
+        ),
+      ],
+    );
+  }
+}
+
+class _TimeFact extends StatelessWidget {
+  const _TimeFact({
     required this.label,
     required this.value,
-    this.alignment = CrossAxisAlignment.start,
+    this.suffix,
+    this.alignEnd = false,
+    this.valueSize = 15,
+    this.valueWeight = FontWeight.w700,
   });
 
   final String label;
   final String value;
-  final CrossAxisAlignment alignment;
+  final String? suffix;
+  final bool alignEnd;
+  final double valueSize;
+  final FontWeight valueWeight;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     return Column(
-      crossAxisAlignment: alignment,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
-        Text(label, style: textTheme.labelMedium),
+        Text(label, style: _secondary.copyWith(fontSize: 11)),
         const SizedBox(height: 3),
-        Text(
-          value,
-          style: textTheme.titleSmall?.copyWith(
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: value),
+              if (suffix != null)
+                TextSpan(
+                  text: ' $suffix',
+                  style: _secondary.copyWith(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+            ],
+          ),
+          textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+          style: TextStyle(
+            fontFamily: 'Manrope',
+            fontSize: valueSize,
+            fontWeight: valueWeight,
+            color: MambaColors.textPrimary,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
@@ -587,12 +601,8 @@ class _ErrorContent extends StatelessWidget {
   }
 }
 
-String _sessionProtocolName(FastingSession session) =>
-    FastingProtocol.nameFor(session.protocolId, session.target);
-
-String _formatDuration(Duration duration) {
-  final hours = duration.inHours;
-  final minutes = duration.inMinutes.remainder(60);
-  final seconds = duration.inSeconds.remainder(60);
-  return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+String _hoursAndMinutes(Duration duration) {
+  final hours = duration.inHours.toString().padLeft(2, '0');
+  final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+  return '$hours:$minutes';
 }

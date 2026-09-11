@@ -21,8 +21,7 @@ void main() {
   setUp(() async {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
-    // The isolate-based factory does not complete inside the fake async zone
-    // that widget tests run in.
+    // The isolate-based factory does not complete in the widget test zone.
     database = await AppDatabase.open(
       databaseFactoryFfiNoIsolate,
       inMemoryDatabasePath,
@@ -35,6 +34,10 @@ void main() {
     WidgetTester tester,
     FakeClock clock,
   ) async {
+    tester.view.physicalSize = const Size(1080, 2430);
+    tester.view.devicePixelRatio = 2.7;
+    addTearDown(tester.view.reset);
+
     final container = ProviderContainer(
       overrides: [
         clockProvider.overrideWithValue(clock),
@@ -63,25 +66,27 @@ void main() {
     final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
     await pumpFastingScreen(tester, clock);
 
-    expect(find.text('Start fast'), findsOneWidget);
+    expect(find.text('Your next fast'), findsOneWidget);
+    expect(find.text('16:00'), findsOneWidget);
     await tester.tap(find.text('Start fast'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Pause fast'), findsOneWidget);
-    expect(find.text('Remaining'), findsOneWidget);
+    expect(find.text('Fasting now'), findsOneWidget);
+    expect(find.text('16h 00m remaining'), findsOneWidget);
 
-    await tester.tap(find.text('Pause fast'));
+    await tester.tap(find.text('Pause'));
     await tester.pumpAndSettle();
-    expect(find.text('Resume fast'), findsOneWidget);
+    expect(find.text('Paused'), findsWidgets);
+    expect(find.text('Resume'), findsOneWidget);
 
-    await tester.tap(find.text('Resume fast'));
+    await tester.tap(find.text('Resume'));
     await tester.pumpAndSettle();
-    expect(find.text('Pause fast'), findsOneWidget);
+    expect(find.text('Fasting now'), findsOneWidget);
 
     await tester.tap(find.text('End fast'));
     await tester.pumpAndSettle();
-    expect(find.text('Fast ended'), findsOneWidget);
-    expect(find.text('Start new fast'), findsOneWidget);
+    expect(find.text('Your next fast'), findsOneWidget);
+    expect(find.text('Start fast'), findsOneWidget);
   });
 
   testWidgets('the ticker refreshes elapsed and remaining time', (
@@ -92,13 +97,15 @@ void main() {
 
     await tester.tap(find.text('Start fast'));
     await tester.pumpAndSettle();
-    expect(find.text('16:00:00'), findsOneWidget);
+    expect(find.text('00:00'), findsOneWidget);
 
-    clock.advance(const Duration(minutes: 5));
+    clock.advance(const Duration(minutes: 5, seconds: 7));
     await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('00:05:00'), findsWidgets);
-    expect(find.text('15:55:00'), findsOneWidget);
+    expect(find.text('00:05'), findsOneWidget);
+    expect(find.text(':07'), findsOneWidget);
+    expect(find.text('15h 54m remaining'), findsOneWidget);
+    expect(find.text('1% of 16h goal'), findsOneWidget);
 
     await tester.tap(find.text('End fast'));
     await tester.pumpAndSettle();
@@ -121,8 +128,9 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('17:00:00'), findsWidgets);
+    expect(find.text('17:00'), findsOneWidget);
     expect(find.text('Goal reached'), findsOneWidget);
+    expect(find.text('100% of 16h goal'), findsOneWidget);
 
     await tester.tap(find.text('End fast'));
     await tester.pumpAndSettle();
