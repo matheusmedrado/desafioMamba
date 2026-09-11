@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/mamba_icon.dart';
 import '../../../app/theme.dart';
+import '../../../l10n/app_localizations.dart';
 import '../domain/auth_failure.dart';
 import '../domain/login_validator.dart';
 import 'auth_controller.dart';
+import 'auth_messages.dart';
 import 'password_reset_sheet.dart';
 
 /// Log in to an account, or create one with the same form.
@@ -26,7 +28,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   var _autovalidate = AutovalidateMode.disabled;
   var _obscurePassword = true;
   var _submitting = false;
-  String? _error;
+  AuthFailure? _failure;
 
   @override
   void dispose() {
@@ -41,7 +43,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() {
       _creatingAccount = !_creatingAccount;
       _autovalidate = AutovalidateMode.disabled;
-      _error = null;
+      _failure = null;
     });
   }
 
@@ -54,7 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
     setState(() {
       _submitting = true;
-      _error = null;
+      _failure = null;
     });
     final auth = ref.read(authControllerProvider.notifier);
     try {
@@ -70,9 +72,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
       }
     } on AuthFailure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) setState(() => _failure = failure);
     } catch (_) {
-      if (mounted) setState(() => _error = AuthFailure.unknown.message);
+      if (mounted) setState(() => _failure = AuthFailure.unknown);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -80,6 +82,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final textTheme = Theme.of(context).textTheme;
     final creating = _creatingAccount;
 
@@ -108,42 +111,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text('Fast Tracker', style: textTheme.labelSmall),
+                      Text(l10n.brandTagline, style: textTheme.labelSmall),
                       const SizedBox(height: 40),
                       Text(
-                        creating
-                            ? 'Start your rhythm.'
-                            : 'Back to your rhythm.',
+                        creating ? l10n.signUpTitle : l10n.loginTitle,
                         style: textTheme.headlineMedium,
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        creating
-                            ? 'Create an account to start tracking your fasts.'
-                            : 'Your fasting plan, right where you left it.',
+                        creating ? l10n.signUpSubtitle : l10n.loginSubtitle,
                         style: textTheme.bodyLarge?.copyWith(
                           fontSize: 15,
                           color: MambaColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 32),
-                      const _FieldLabel('Email'),
+                      _FieldLabel(l10n.emailLabel),
                       TextFormField(
                         controller: _emailController,
-                        validator: LoginValidator.email,
+                        validator: (value) => loginFieldMessage(
+                          l10n,
+                          LoginValidator.email(value),
+                        ),
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         autocorrect: false,
                         autofillHints: const [AutofillHints.email],
-                        decoration: const InputDecoration(
-                          hintText: 'you@example.com',
-                        ),
+                        decoration: InputDecoration(hintText: l10n.emailHint),
                       ),
                       const SizedBox(height: 16),
-                      const _FieldLabel('Password'),
+                      _FieldLabel(l10n.passwordLabel),
                       TextFormField(
                         controller: _passwordController,
-                        validator: LoginValidator.password,
+                        validator: (value) => loginFieldMessage(
+                          l10n,
+                          LoginValidator.password(value),
+                        ),
                         obscureText: _obscurePassword,
                         textInputAction: creating
                             ? TextInputAction.next
@@ -155,8 +158,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
                         onFieldSubmitted: creating ? null : (_) => _submit(),
                         decoration: InputDecoration(
-                          hintText:
-                              'At least ${LoginValidator.minPasswordLength} characters',
+                          hintText: l10n.passwordHint(
+                            LoginValidator.minPasswordLength,
+                          ),
                           suffixIcon: IconButton(
                             onPressed: () {
                               setState(
@@ -164,8 +168,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               );
                             },
                             tooltip: _obscurePassword
-                                ? 'Show password'
-                                : 'Hide password',
+                                ? l10n.showPassword
+                                : l10n.hidePassword,
                             icon: MambaIcon(
                               _obscurePassword
                                   ? MambaIcons.eye
@@ -178,19 +182,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       if (creating) ...[
                         const SizedBox(height: 16),
-                        const _FieldLabel('Confirm password'),
+                        _FieldLabel(l10n.confirmPasswordLabel),
                         TextFormField(
                           controller: _confirmController,
-                          validator: (value) => LoginValidator.confirmPassword(
-                            value,
-                            _passwordController.text,
+                          validator: (value) => loginFieldMessage(
+                            l10n,
+                            LoginValidator.confirmPassword(
+                              value,
+                              _passwordController.text,
+                            ),
                           ),
                           obscureText: _obscurePassword,
                           textInputAction: TextInputAction.done,
                           autofillHints: const [AutofillHints.newPassword],
                           onFieldSubmitted: (_) => _submit(),
-                          decoration: const InputDecoration(
-                            hintText: 'Repeat your password',
+                          decoration: InputDecoration(
+                            hintText: l10n.confirmPasswordHint,
                           ),
                         ),
                       ] else
@@ -200,21 +207,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             onPressed: _submitting
                                 ? null
                                 : () {
-                                    setState(() => _error = null);
+                                    setState(() => _failure = null);
                                     showPasswordResetSheet(
                                       context,
                                       email: _emailController.text,
                                     );
                                   },
-                            child: const Text('Forgot password?'),
+                            child: Text(l10n.forgotPassword),
                           ),
                         ),
-                      if (_error != null) ...[
+                      if (_failure case final failure?) ...[
                         const SizedBox(height: 12),
                         Semantics(
                           liveRegion: true,
                           child: Text(
-                            _error!,
+                            authFailureMessage(l10n, failure),
                             style: textTheme.bodyMedium?.copyWith(
                               color: MambaColors.danger,
                             ),
@@ -227,9 +234,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         child: Text(
                           _submitting
                               ? (creating
-                                    ? 'Creating account...'
-                                    : 'Signing in...')
-                              : (creating ? 'Create account' : 'Log in'),
+                                    ? l10n.creatingAccount
+                                    : l10n.signingIn)
+                              : (creating ? l10n.createAccount : l10n.logIn),
                         ),
                       ),
                       const Spacer(),
@@ -240,8 +247,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         children: [
                           Text(
                             creating
-                                ? 'Already have an account?'
-                                : 'New to Mamba?',
+                                ? l10n.alreadyHaveAnAccount
+                                : l10n.newToMamba,
                             style: textTheme.bodyMedium?.copyWith(
                               color: MambaColors.textSecondary,
                             ),
@@ -249,7 +256,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           TextButton(
                             onPressed: _submitting ? null : _toggleMode,
                             child: Text(
-                              creating ? 'Log in' : 'Create an account',
+                              creating ? l10n.logIn : l10n.createAnAccount,
                               style: const TextStyle(fontSize: 14),
                             ),
                           ),

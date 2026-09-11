@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/formatting.dart';
+import '../../../l10n/app_localizations.dart';
 import '../domain/week_summary.dart';
 
 /// Bar chart of fasting hours for seven days, built from standard widgets.
@@ -25,13 +26,12 @@ class WeeklyFastingChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final labelStyle = Theme.of(context).textTheme.labelSmall;
 
     return Semantics(
       container: true,
-      label:
-          'Fasting hours for each of the last seven days against the '
-          '$goalHours-hour goal',
+      label: l10n.chartSemantics(goalHours),
       child: Column(
         children: [
           Padding(
@@ -52,7 +52,7 @@ class WeeklyFastingChart extends StatelessWidget {
                       left: 0,
                       bottom: _offsetFor(hours) - 7,
                       child: ExcludeSemantics(
-                        child: Text('${hours}h', style: labelStyle),
+                        child: Text(l10n.hoursShort(hours), style: labelStyle),
                       ),
                     ),
                   ],
@@ -106,27 +106,30 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final hours = day.fastingTime.inMinutes / 60;
     final color = !day.hasFast
         ? MambaColors.surfaceElevated
         : day.fastingGoalReached
         ? MambaColors.purple
         : MambaColors.surfaceHover;
-    final description = day.hasFast
-        ? '${formatHoursMinutes(day.fastingTime)}'
-              '${day.fastingGoalReached ? ', goal reached' : ', short'}'
-        : 'no fast';
+    final time = formatHoursMinutes(day.fastingTime);
+    final description = !day.hasFast
+        ? l10n.barNoFast
+        : day.fastingGoalReached
+        ? l10n.barGoalReached(time)
+        : l10n.barShort(time);
 
     return Semantics(
       container: true,
-      label: '${formatWeekdayShort(day.day)}: $description',
+      label: l10n.barSemantics(formatWeekdayShort(day.day), description),
       child: ExcludeSemantics(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             if (day.hasFast) ...[
               Text(
-                '${hours.round()}h',
+                l10n.hoursShort(hours.round()),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: MambaColors.textPrimary,
                   fontWeight: FontWeight.w600,

@@ -9,6 +9,7 @@ import '../../../app/screen_header.dart';
 import '../../../app/theme.dart';
 import '../../../core/clock.dart';
 import '../../../core/formatting.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../auth/presentation/settings_sheet.dart';
 import '../../dashboard/domain/day_summary.dart';
 import '../../fasting/domain/fasting_protocol.dart';
@@ -60,6 +61,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final history = ref.watch(historyControllerProvider);
 
     return Scaffold(
@@ -68,10 +70,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
         child: Column(
           children: [
             ScreenHeader(
-              title: 'History',
+              title: l10n.historyTab,
               action: RoundIconButton(
                 icon: MambaIcons.settings,
-                label: 'Settings',
+                label: l10n.settings,
                 onPressed: () => showSettingsSheet(context),
               ),
             ),
@@ -114,6 +116,8 @@ class _ViewSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: MambaColors.surfaceElevated,
@@ -126,7 +130,7 @@ class _ViewSwitch extends StatelessWidget {
           children: [
             Expanded(
               child: _ViewTab(
-                label: 'Days',
+                label: l10n.days,
                 selected: selected == _HistoryView.days,
                 onTap: () => onChanged(_HistoryView.days),
               ),
@@ -134,7 +138,7 @@ class _ViewSwitch extends StatelessWidget {
             const SizedBox(width: 4),
             Expanded(
               child: _ViewTab(
-                label: 'Week',
+                label: l10n.week,
                 selected: selected == _HistoryView.week,
                 onTap: () => onChanged(_HistoryView.week),
               ),
@@ -230,7 +234,9 @@ class _WeekHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final average = week.averageFast;
+
     return DecoratedBox(
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: MambaColors.border)),
@@ -241,15 +247,15 @@ class _WeekHeader extends StatelessWidget {
           children: [
             Expanded(
               child: _HeaderStat(
-                label: 'Last 7 days',
+                label: l10n.last7Days,
                 value: '${week.daysWithinGoal}',
-                unit: '/7 goals',
+                unit: l10n.goalsOutOfSeven,
               ),
             ),
             const SizedBox(width: 20),
             Expanded(
               child: _HeaderStat(
-                label: 'Average fast',
+                label: l10n.averageFast,
                 value: average == null ? '—' : formatHoursMinutes(average),
               ),
             ),
@@ -311,15 +317,17 @@ class _GroupTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final label = switch (group) {
-      HistoryGroup.thisWeek => 'This week',
-      HistoryGroup.lastWeek => 'Last week',
-      HistoryGroup.earlier => 'Earlier',
+      HistoryGroup.thisWeek => l10n.thisWeek,
+      HistoryGroup.lastWeek => l10n.lastWeek,
+      HistoryGroup.earlier => l10n.earlier,
     };
+
     return Padding(
       padding: const EdgeInsets.only(top: 24, bottom: 4),
       child: Text(
-        label.toUpperCase(),
+        label,
         style: _secondary.copyWith(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -337,9 +345,10 @@ class _DayRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final summary = day.summary;
     final lastFast = day.fasts.isEmpty ? null : day.fasts.last;
-    final calories = '${formatThousands(summary.calories)} kcal';
+    final calories = formatThousands(summary.calories);
 
     return InkWell(
       onTap: () => Navigator.of(context).push(
@@ -360,8 +369,10 @@ class _DayRow extends StatelessWidget {
                   children: [
                     Text(
                       lastFast == null
-                          ? 'No fast'
-                          : '${formatHoursMinutes(summary.fastingTime)} fast',
+                          ? l10n.noFast
+                          : l10n.fastOfDuration(
+                              formatHoursMinutes(summary.fastingTime),
+                            ),
                       style: TextStyle(
                         fontFamily: 'Manrope',
                         fontSize: 15,
@@ -378,8 +389,14 @@ class _DayRow extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       lastFast == null
-                          ? calories
-                          : '${FastingProtocol.nameFor(lastFast.protocolId, lastFast.target)} · $calories',
+                          ? l10n.kcalWithValue(calories)
+                          : l10n.protocolAndCalories(
+                              FastingProtocol.nameFor(
+                                lastFast.protocolId,
+                                lastFast.target,
+                              ),
+                              calories,
+                            ),
                       style: _secondary.copyWith(fontSize: 13),
                     ),
                   ],
@@ -454,11 +471,12 @@ class _StatusDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final (icon, label, color) = !hasFast
-        ? (MambaIcons.minus, 'No fast', MambaColors.textSecondary)
+        ? (MambaIcons.minus, l10n.noFast, MambaColors.textSecondary)
         : status == DayGoalStatus.within
-        ? (MambaIcons.check, 'Within goal', MambaColors.textPrimary)
-        : (MambaIcons.flag, 'Outside goal', MambaColors.textSecondary);
+        ? (MambaIcons.check, l10n.withinGoal, MambaColors.textPrimary)
+        : (MambaIcons.flag, l10n.outsideGoal, MambaColors.textSecondary);
 
     return Tooltip(
       message: label,
@@ -483,7 +501,9 @@ class _EmptyHistory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final textTheme = Theme.of(context).textTheme;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 72, 24, 24),
       child: Column(
@@ -511,14 +531,13 @@ class _EmptyHistory extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            'Nothing here yet',
+            l10n.nothingHereYet,
             textAlign: TextAlign.center,
             style: textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
           Text(
-            'Your completed fasts and daily calories will show up here, '
-            'one line per day.',
+            l10n.historyEmptyBody,
             textAlign: TextAlign.center,
             style: textTheme.bodyMedium?.copyWith(
               color: MambaColors.textSecondary,
@@ -537,13 +556,15 @@ class _HistoryError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('We could not load your history.'),
+          Text(l10n.couldNotLoadHistory),
           const SizedBox(height: 12),
-          TextButton(onPressed: onRetry, child: const Text('Try again')),
+          TextButton(onPressed: onRetry, child: Text(l10n.tryAgain)),
         ],
       ),
     );

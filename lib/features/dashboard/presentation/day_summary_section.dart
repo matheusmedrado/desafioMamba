@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/mamba_icon.dart';
 import '../../../app/theme.dart';
 import '../../../core/formatting.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../meals/presentation/meals_controller.dart';
 import '../domain/day_summary.dart';
 import 'calorie_limit_sheet.dart';
@@ -52,6 +53,7 @@ class _DaySummarySectionState extends ConsumerState<DaySummarySection>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final summary = ref.watch(todaySummaryProvider);
 
     return Column(
@@ -59,10 +61,10 @@ class _DaySummarySectionState extends ConsumerState<DaySummarySection>
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
-                'Your day',
-                style: TextStyle(
+                l10n.yourDay,
+                style: const TextStyle(
                   fontFamily: 'Manrope',
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -98,10 +100,11 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final (icon, label) = switch (status) {
-      DayGoalStatus.within => (MambaIcons.check, 'Within goal'),
-      DayGoalStatus.outside => (MambaIcons.flag, 'Outside goal'),
-      DayGoalStatus.inProgress => (MambaIcons.clock, 'In progress'),
+      DayGoalStatus.within => (MambaIcons.check, l10n.withinGoal),
+      DayGoalStatus.outside => (MambaIcons.flag, l10n.outsideGoal),
+      DayGoalStatus.inProgress => (MambaIcons.clock, l10n.inProgress),
     };
 
     return DecoratedBox(
@@ -136,6 +139,8 @@ class _SummaryContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -152,17 +157,19 @@ class _SummaryContent extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _Stat(
-                      label: 'Calories',
+                      label: l10n.calories,
                       value: formatThousands(summary.calories),
-                      unit: '/ ${formatThousands(summary.calorieLimit)} kcal',
+                      unit: l10n.calorieLimitUnit(
+                        formatThousands(summary.calorieLimit),
+                      ),
                       onTap: onChangeLimit,
-                      tapLabel: 'Change calorie limit',
+                      tapLabel: l10n.changeCalorieLimit,
                     ),
                   ),
                   const VerticalDivider(width: 33),
                   Expanded(
                     child: _Stat(
-                      label: 'Fasted today',
+                      label: l10n.fastedToday,
                       value: formatHoursMinutes(summary.fastingTime),
                     ),
                   ),
@@ -173,7 +180,7 @@ class _SummaryContent extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          _statusMessage(summary),
+          _statusMessage(l10n, summary),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12),
         ),
       ],
@@ -277,25 +284,27 @@ class _SummaryError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Row(
       children: [
-        const Expanded(child: Text('We could not load your day.')),
-        TextButton(onPressed: onRetry, child: const Text('Try again')),
+        Expanded(child: Text(l10n.couldNotLoadDay)),
+        TextButton(onPressed: onRetry, child: Text(l10n.tryAgain)),
       ],
     );
   }
 }
 
-String _statusMessage(DaySummary summary) {
-  final limit = formatThousands(summary.calorieLimit);
+String _statusMessage(AppLocalizations l10n, DaySummary summary) {
   return switch (summary.status) {
-    DayGoalStatus.within =>
-      'Calories within your limit and fasting goal reached.',
-    DayGoalStatus.inProgress =>
-      'Stay within $limit kcal and reach your fasting goal.',
+    DayGoalStatus.within => l10n.dayWithinMessage,
+    DayGoalStatus.inProgress => l10n.dayInProgressMessage(
+      formatThousands(summary.calorieLimit),
+    ),
     DayGoalStatus.outside when !summary.caloriesWithinLimit =>
-      'Over your calorie limit by '
-          '${formatThousands(summary.calories - summary.calorieLimit)} kcal.',
-    DayGoalStatus.outside => 'Today\'s fast ended before its goal.',
+      l10n.dayOverCaloriesMessage(
+        formatThousands(summary.calories - summary.calorieLimit),
+      ),
+    DayGoalStatus.outside => l10n.dayFastShortMessage,
   };
 }

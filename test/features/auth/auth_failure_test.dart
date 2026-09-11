@@ -22,8 +22,8 @@ void main() {
 
   test('sign in does not reveal whether an email has an account', () {
     expect(
-      AuthFailure.fromCode('user-not-found').message,
-      AuthFailure.fromCode('wrong-password').message,
+      AuthFailure.fromCode('user-not-found'),
+      AuthFailure.fromCode('wrong-password'),
     );
   });
 }

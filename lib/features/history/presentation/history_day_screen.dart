@@ -5,6 +5,7 @@ import '../../../app/screen_header.dart';
 import '../../../app/theme.dart';
 import '../../../core/formatting.dart';
 import '../../../core/local_day.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../dashboard/domain/day_summary.dart';
 import '../../fasting/domain/fasting_protocol.dart';
 import '../../fasting/domain/fasting_session.dart';
@@ -31,6 +32,7 @@ class HistoryDayScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final summary = day.summary;
 
     return Scaffold(
@@ -44,19 +46,19 @@ class HistoryDayScreen extends StatelessWidget {
                 children: [
                   Text(
                     summary.status == DayGoalStatus.within
-                        ? 'Within goal'
-                        : 'Outside goal',
+                        ? l10n.withinGoal
+                        : l10n.outsideGoal,
                     style: MambaTextStyles.screenTitle.copyWith(fontSize: 26),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    _statusReason(day),
+                    _statusReason(l10n, day),
                     style: _secondary.copyWith(fontSize: 14, height: 1.4),
                   ),
                   const SizedBox(height: 20),
                   if (day.fasts.isEmpty)
                     Text(
-                      'No fast ended on this day.',
+                      l10n.noFastEndedOnThisDay,
                       style: _secondary.copyWith(fontSize: 13),
                     )
                   else
@@ -66,14 +68,15 @@ class HistoryDayScreen extends StatelessWidget {
                     ],
                   const SizedBox(height: 24),
                   _SectionTitle(
-                    title: 'Meals',
-                    trailing:
-                        '${formatThousands(summary.calories)} / '
-                        '${formatThousands(summary.calorieLimit)} kcal',
+                    title: l10n.mealsSection,
+                    trailing: l10n.caloriesOfLimit(
+                      formatThousands(summary.calories),
+                      formatThousands(summary.calorieLimit),
+                    ),
                   ),
                   if (day.meals.isEmpty)
                     Text(
-                      'No meals logged.',
+                      l10n.noMealsLogged,
                       style: _secondary.copyWith(fontSize: 13),
                     )
                   else
@@ -91,19 +94,21 @@ class HistoryDayScreen extends StatelessWidget {
   }
 }
 
-String _statusReason(HistoryDay day) {
+String _statusReason(AppLocalizations l10n, HistoryDay day) {
   final summary = day.summary;
-  if (summary.status == DayGoalStatus.within) {
-    return 'Calories within the limit and a fast reached its goal.';
-  }
+  if (summary.status == DayGoalStatus.within) return l10n.dayReasonWithin;
+
   final reasons = [
     if (!summary.caloriesWithinLimit)
-      'over the calorie limit by '
-          '${formatThousands(summary.calories - summary.calorieLimit)} kcal',
+      l10n.dayReasonOverLimit(
+        formatThousands(summary.calories - summary.calorieLimit),
+      ),
     if (!summary.fastingGoalReached)
-      day.fasts.isEmpty ? 'no fast ended' : 'no fast reached its goal',
+      day.fasts.isEmpty
+          ? l10n.dayReasonNoFastEnded
+          : l10n.dayReasonNoFastReached,
   ];
-  final text = reasons.join(' and ');
+  final text = reasons.join(l10n.dayReasonsJoin);
   return '${text[0].toUpperCase()}${text.substring(1)}.';
 }
 
@@ -149,6 +154,7 @@ class _FastCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final endedAt = fast.endedAt!;
     final elapsed = fast.elapsedAt(endedAt);
     final reached = fast.goalReachedAt(endedAt);
@@ -182,7 +188,7 @@ class _FastCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'FASTING SESSION',
+                        l10n.fastingSession,
                         style: _secondary.copyWith(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -221,8 +227,8 @@ class _FastCard extends StatelessWidget {
                 _Chip(
                   icon: reached ? MambaIcons.check : MambaIcons.flag,
                   label: reached
-                      ? 'Goal reached'
-                      : '${(progress * 100).round()}% of target',
+                      ? l10n.goalReached
+                      : l10n.percentOfTarget((progress * 100).round()),
                 ),
               ],
             ),
@@ -241,11 +247,14 @@ class _FastCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _RangeText(
-                    label: 'Started',
+                    label: l10n.startedLabel,
                     value: _timeOnDay(fast.startedAt, day),
                   ),
                 ),
-                _RangeText(label: 'Ended', value: formatClockTime(endedAt)),
+                _RangeText(
+                  label: l10n.endedLabel,
+                  value: formatClockTime(endedAt),
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -254,12 +263,15 @@ class _FastCard extends StatelessWidget {
             Row(
               children: [
                 _Fact(
-                  label: 'Protocol',
+                  label: l10n.protocolLabel,
                   value: FastingProtocol.nameFor(fast.protocolId, fast.target),
                 ),
-                _Fact(label: 'Target', value: '${fast.target.inHours}h'),
                 _Fact(
-                  label: 'Result',
+                  label: l10n.targetLabel,
+                  value: l10n.hoursShort(fast.target.inHours),
+                ),
+                _Fact(
+                  label: l10n.resultLabel,
                   value:
                       '${difference.isNegative ? '−' : '+'}'
                       '${formatHoursMinutes(difference.abs())}',
@@ -378,6 +390,8 @@ class _MealRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 56),
       child: Padding(
@@ -420,7 +434,7 @@ class _MealRow extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'kcal',
+                  l10n.kcal,
                   style: _secondary.copyWith(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,

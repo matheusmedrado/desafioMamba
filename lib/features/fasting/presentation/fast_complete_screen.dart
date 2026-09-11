@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/brand_header.dart';
+import '../../../app/date_text.dart';
 import '../../../app/mamba_icon.dart';
 import '../../../app/theme.dart';
 import '../../../core/formatting.dart';
+import '../../../l10n/app_localizations.dart';
 import '../domain/fasting_protocol.dart';
 import '../domain/fasting_session.dart';
 import 'widgets/fasting_path.dart';
@@ -28,6 +30,7 @@ class FastCompleteScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final endedAt = session.endedAt!;
     final fasted = session.elapsedAt(endedAt);
     final reached = session.goalReachedAt(endedAt);
@@ -35,7 +38,7 @@ class FastCompleteScreen extends StatelessWidget {
         .clamp(0.0, 1.0);
     final goalHours = session.target.inHours;
     final eatingEnd = session.eatingWindowEndsAt!;
-    final eatingDay = formatRelativeDay(eatingEnd, now);
+    final eatingDay = relativeDayText(l10n, eatingEnd, now);
     final unit = MambaTextStyles.heroNumber.copyWith(
       fontSize: 26,
       fontWeight: FontWeight.w500,
@@ -53,7 +56,7 @@ class FastCompleteScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: BrandHeader(
                 actionIcon: MambaIcons.close,
-                actionLabel: 'Close',
+                actionLabel: l10n.close,
                 onAction: () => close(FastCompleteAction.backToToday),
               ),
             ),
@@ -63,18 +66,15 @@ class FastCompleteScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'Fast complete.',
-                      style: MambaTextStyles.screenTitle,
-                    ),
+                    Text(l10n.fastComplete, style: MambaTextStyles.screenTitle),
                     const SizedBox(height: 5),
                     Text(
-                      'Your session is saved',
+                      l10n.sessionIsSaved,
                       style: _secondary.copyWith(fontSize: 12),
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      'Time fasted',
+                      l10n.timeFasted,
                       style: _secondary.copyWith(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -117,7 +117,7 @@ class FastCompleteScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          reached ? 'Goal reached' : 'Ended early',
+                          reached ? l10n.goalReached : l10n.endedEarly,
                           style: const TextStyle(
                             fontFamily: 'Manrope',
                             fontSize: 13,
@@ -128,9 +128,10 @@ class FastCompleteScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     Semantics(
-                      label:
-                          '${formatHoursMinutes(fasted)} fasted of a '
-                          '$goalHours-hour goal.',
+                      label: l10n.fastedOfGoalSemantics(
+                        formatHoursMinutes(fasted),
+                        goalHours,
+                      ),
                       child: ExcludeSemantics(
                         child: LayoutBuilder(
                           builder: (context, constraints) => FastingPath(
@@ -162,24 +163,33 @@ class FastCompleteScreen extends StatelessWidget {
                         _Detail(
                           icon: MambaIcons.target,
                           label: reached
-                              ? '${goalHours}h goal'
-                              : '${(progress * 100).round()}% of ${goalHours}h',
+                              ? l10n.goalWithHours(goalHours)
+                              : l10n.percentOfHours(
+                                  (progress * 100).round(),
+                                  goalHours,
+                                ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
                     _Fact(
-                      label: 'Started',
-                      value: _dayAndTime(session.startedAt),
+                      label: l10n.startedLabel,
+                      value: _dayAndTime(l10n, session.startedAt),
                     ),
                     const Divider(),
-                    _Fact(label: 'Ended', value: _dayAndTime(endedAt)),
+                    _Fact(
+                      label: l10n.endedLabel,
+                      value: _dayAndTime(l10n, endedAt),
+                    ),
                     const Divider(),
                     _Fact(
-                      label: 'Eating window',
-                      value:
-                          'Until ${formatClockTime(eatingEnd)}'
-                          '${eatingDay == 'Today' ? '' : ' ${eatingDay.toLowerCase()}'}',
+                      label: l10n.eatingWindow,
+                      value: eatingDay == l10n.today
+                          ? l10n.untilTime(formatClockTime(eatingEnd))
+                          : l10n.untilTimeOnDay(
+                              formatClockTime(eatingEnd),
+                              eatingDay.toLowerCase(),
+                            ),
                     ),
                   ],
                 ),
@@ -200,7 +210,7 @@ class FastCompleteScreen extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    child: const Text('Back to Today'),
+                    child: Text(l10n.backToToday),
                   ),
                   const SizedBox(height: 4),
                   TextButton(
@@ -213,7 +223,7 @@ class FastCompleteScreen extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    child: const Text('Log a meal'),
+                    child: Text(l10n.logAMeal),
                   ),
                 ],
               ),
@@ -224,8 +234,8 @@ class FastCompleteScreen extends StatelessWidget {
     );
   }
 
-  String _dayAndTime(DateTime time) =>
-      '${formatRelativeDay(time, now)}, ${formatClockTime(time)}';
+  String _dayAndTime(AppLocalizations l10n, DateTime time) =>
+      '${relativeDayText(l10n, time, now)}, ${formatClockTime(time)}';
 }
 
 class _Detail extends StatelessWidget {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import 'brand_header.dart';
 import 'mamba_icon.dart';
 import 'theme.dart';
@@ -30,7 +31,7 @@ class ScreenHeader extends StatelessWidget {
             if (showBack) ...[
               RoundIconButton(
                 icon: MambaIcons.arrowLeft,
-                label: 'Back',
+                label: AppLocalizations.of(context)!.back,
                 onPressed: () => Navigator.of(context).maybePop(),
               ),
               const SizedBox(width: 12),

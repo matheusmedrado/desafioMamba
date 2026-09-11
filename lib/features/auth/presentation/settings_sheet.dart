@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/mamba_icon.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../fasting/data/fasting_notification_service.dart';
 import 'auth_controller.dart';
 
@@ -20,6 +21,7 @@ class SettingsSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final textTheme = Theme.of(context).textTheme;
     final email = ref.watch(authControllerProvider).value?.email ?? '';
 
@@ -30,9 +32,9 @@ class SettingsSheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Settings', style: textTheme.titleLarge),
+            Text(l10n.settings, style: textTheme.titleLarge),
             const SizedBox(height: 16),
-            Text('Signed in as', style: textTheme.labelMedium),
+            Text(l10n.signedInAs, style: textTheme.labelMedium),
             const SizedBox(height: 4),
             Text(email, style: textTheme.titleMedium),
             const SizedBox(height: 24),
@@ -48,7 +50,7 @@ class SettingsSheet extends ConsumerWidget {
                 );
               },
               icon: const MambaIcon(MambaIcons.logOut, size: 20),
-              label: const Text('Log out'),
+              label: Text(l10n.logOut),
             ),
           ],
         ),
