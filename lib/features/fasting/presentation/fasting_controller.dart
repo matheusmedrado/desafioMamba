@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/clock.dart';
 import '../data/fasting_repository.dart';
+import '../data/fasting_notification_service.dart';
 import '../domain/fasting_session.dart';
 import 'protocol_controller.dart';
 
@@ -18,6 +19,7 @@ class FastingController extends AsyncNotifier<FastingSession?> {
   Future<FastingSession?> build() async {
     ref.onDispose(_stopTicker);
     final session = await ref.watch(fastingRepositoryProvider).load();
+    await _syncNotifications(session);
     _syncTicker(session);
     return session;
   }
@@ -43,7 +45,7 @@ class FastingController extends AsyncNotifier<FastingSession?> {
       target: protocol.target,
       startedAt: now,
     );
-    await _save(session);
+    await _save(session, showStartedNotification: true);
   }
 
   Future<void> pause() {
@@ -65,6 +67,7 @@ class FastingController extends AsyncNotifier<FastingSession?> {
   Future<void> restore() async {
     try {
       final session = await ref.read(fastingRepositoryProvider).load();
+      await _syncNotifications(session);
       state = AsyncData(session);
       _syncTicker(session);
     } catch (error, stackTrace) {
@@ -99,12 +102,24 @@ class FastingController extends AsyncNotifier<FastingSession?> {
     await _save(updated);
   }
 
-  Future<void> _save(FastingSession session) async {
+  Future<void> _save(
+    FastingSession session, {
+    bool showStartedNotification = false,
+  }) async {
     // Persist before exposing the new state so a restart cannot observe a
     // transition that was only applied in memory.
     await ref.read(fastingRepositoryProvider).save(session);
+    final notifications = ref.read(fastingNotificationServiceProvider);
+    if (showStartedNotification) await notifications.showFastStarted();
+    await notifications.sync(session, ref.read(clockProvider).now());
     state = AsyncData(session);
     _syncTicker(session);
+  }
+
+  Future<void> _syncNotifications(FastingSession? session) {
+    return ref
+        .read(fastingNotificationServiceProvider)
+        .sync(session, ref.read(clockProvider).now());
   }
 
   void _syncTicker(FastingSession? session) {

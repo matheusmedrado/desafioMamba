@@ -17,6 +17,7 @@ Done:
 - Local login with a persistent session. The session is restored after closing and reopening the app.
 - Fasting protocols: 12:12, 16:8, 18:6, and a custom protocol with 8 to 23 fasting hours. The choice is stored locally.
 - Fasting timer with start, pause, resume, and manual end controls. Elapsed and remaining time are restored from persisted timestamps after backgrounding or restarting the app.
+- Local notifications when a fast starts and when its planned fasting goal is reached. The scheduled notification is restored, rescheduled, or canceled with the active session.
 
 Planned from the challenge specification:
 
@@ -33,6 +34,8 @@ Remaining work is tracked in [GitHub Issues](https://github.com/matheusmedrado/d
 - Flutter 3.47.2 with Dart 3.13.2
 - `flutter_riverpod` for state management and dependency injection
 - `shared_preferences` for small single-record data such as the session
+- `flutter_local_notifications` for Android start and fasting-goal notifications
+- `timezone` and `flutter_timezone` for scheduling in the device's local timezone
 - Manrope (SIL Open Font License) bundled as the app font
 - `flutter_test` and `flutter_lints`
 - Java 17, Android platform 36, Gradle from the generated Android project
@@ -41,7 +44,6 @@ Remaining work is tracked in [GitHub Issues](https://github.com/matheusmedrado/d
 Planned for upcoming issues, listed here because the architecture already assumes them:
 
 - `sqflite` for meals and completed fasting sessions
-- `flutter_local_notifications` and `timezone` for start and goal notifications
 
 ## Architecture
 
@@ -60,6 +62,8 @@ Rules the code follows:
 - The current time comes from an injected `Clock`, never from `DateTime.now()` inside business logic.
 - Navigation uses the plain `Navigator` with a bottom navigation shell. No routing package.
 - The fasting screen observes app lifecycle changes. It stops the display ticker when hidden and reloads the persisted session when the app resumes.
+- Notifications are a projection of the persisted fasting session. A fixed goal-notification ID is canceled before a new target is scheduled, so pause, resume, end, and restore cannot leave an old target behind.
+- Android uses inexact alarms. The timer remains correct if Android delays or does not deliver a notification.
 
 ## Project Structure
 
@@ -83,13 +87,13 @@ lib/
       presentation/     AuthController, LoginScreen
     fasting/
       domain/           FastingProtocol, ProtocolSettings, FastingSession
-      data/             ProtocolRepository and FastingRepository over shared_preferences
+      data/             ProtocolRepository, FastingRepository, and notification service
       presentation/     Riverpod controllers, timer screen, protocol selection and custom editor
 test/
   app/                  App smoke test
   core/                 Clock tests
   features/auth/        Validator, repository, controller, and login screen tests
-  features/fasting/     Protocol, timer, persistence, controller, and selection flow tests
+  features/fasting/     Protocol, timer, persistence, notification, controller, and selection flow tests
 pubspec.yaml            Package metadata and dependencies
 pubspec.lock            Resolved dependency versions
 ```
@@ -119,7 +123,7 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the fasting screen shows the selected protocol, timer controls, and a way to change the protocol or log out.
+The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the fasting screen shows the selected protocol, timer controls, and a way to change the protocol or log out. Android 13 and newer ask for notification permission when the first fast starts.
 
 ## Building the APK
 
@@ -200,6 +204,16 @@ Reason: the same calculation works while the app is open, after returning from b
 
 Trade-off: a few more fields than a counter. In exchange the timer has no drift and needs no background service.
 
+### Local notifications
+
+Problem: a notification must follow the active fasting session across pause, resume, restart, and manual end without becoming a second source of truth.
+
+Decision: use `flutter_local_notifications` with `timezone`. Show a start notification immediately, and schedule one fixed-ID notification for the planned fasting goal. Synchronization cancels that ID first, then schedules it only for a running session whose goal has not been reached.
+
+Reason: the persisted session already contains the target timestamp inputs. Rebuilding the notification projection from that state keeps pause, resume, end, and restore idempotent. `flutter_timezone` sets the timezone used by the schedule while persisted timestamps remain UTC.
+
+Trade-off: Android uses inexact alarms, so delivery can be delayed by the OS. Notification timing is only a reminder; timer calculations do not depend on it.
+
 ### Other choices
 
 - The protocol choice is one small record: the selected protocol id plus the custom fasting hours. Custom hours are kept when a preset is selected again, so the custom card stays editable. Presets are constants in code, since they never change and there is nothing to store for them.
@@ -218,7 +232,8 @@ Trade-off: a few more fields than a counter. In exchange the timer has no drift 
 ## Known Limitations
 
 - Login is local only. There is no registration, password recovery, or password verification. The mockup links for those flows were left out on purpose.
-- Local notifications, meals, history, and the weekly chart are pending.
+- Android may delay inexact notifications because of Doze mode or vendor battery-management rules. Notification permission can also be denied.
+- Meals, history, and the weekly chart are pending.
 - Final signing, release testing, and delivery links are pending.
 
 ## What I Would Improve With More Time
