@@ -33,6 +33,27 @@ abstract final class MambaRadius {
   static const large = 24.0;
 }
 
+abstract final class MambaTextStyles {
+  static const heroNumber = TextStyle(
+    fontFamily: 'Manrope',
+    fontSize: 76,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -4.9,
+    height: 1.05,
+    color: MambaColors.textPrimary,
+    fontFeatures: [FontFeature.tabularFigures()],
+  );
+
+  static const screenTitle = TextStyle(
+    fontFamily: 'Manrope',
+    fontSize: 24,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -1.08,
+    height: 1.15,
+    color: MambaColors.textPrimary,
+  );
+}
+
 /// Dark theme: off-white primary buttons, purple for progress and selection.
 ThemeData buildMambaTheme() {
   const colorScheme = ColorScheme.dark(
