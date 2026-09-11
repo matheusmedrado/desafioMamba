@@ -4,7 +4,7 @@
 
 Flutter app for the Mamba Fast Tracker technical challenge: intermittent fasting and calorie tracking, Android first, all data stored on the device.
 
-The repository currently has local login with a persistent session, fasting protocol selection, and a timestamp-based fasting timer. Product features are implemented issue by issue.
+The repository currently has local login with a persistent session, fasting protocol selection, a timestamp-based fasting timer with local notifications, and meal tracking. Product features are implemented issue by issue.
 
 ## Screenshots
 
@@ -18,11 +18,10 @@ Done:
 - Fasting protocols: 12:12, 16:8, 18:6, and a custom protocol with 8 to 23 fasting hours. The choice is stored locally.
 - Fasting timer with start, pause, resume, and manual end controls. Elapsed and remaining time are restored from persisted timestamps after backgrounding or restarting the app.
 - Local notifications when a fast starts and when its planned fasting goal is reached. The scheduled notification is restored, rescheduled, or canceled with the active session.
+- Meal tracking: add, edit, and delete today's meals with a name and calories. The meal time is recorded automatically, and meals are stored in SQLite so they remain after restarting the app.
 
 Planned from the challenge specification:
 
-- Notifications when fasting starts and ends
-- Meal records with calories and automatic timestamps
 - Daily calorie and fasting totals with goal status
 - Previous-day summaries and a weekly chart
 - Local data persistence
@@ -34,16 +33,14 @@ Remaining work is tracked in [GitHub Issues](https://github.com/matheusmedrado/d
 - Flutter 3.47.2 with Dart 3.13.2
 - `flutter_riverpod` for state management and dependency injection
 - `shared_preferences` for small single-record data such as the session
+- `sqflite` for meals, with `path` to build the database file path. Completed fasting sessions will use the same database.
 - `flutter_local_notifications` for Android start and fasting-goal notifications
 - `timezone` and `flutter_timezone` for scheduling in the device's local timezone
 - Manrope (SIL Open Font License) bundled as the app font
 - `flutter_test` and `flutter_lints`
+- `sqflite_common_ffi` so repository tests run against real SQLite on the development machine and in CI
 - Java 17, Android platform 36, Gradle from the generated Android project
 - GitHub Actions for validation
-
-Planned for upcoming issues, listed here because the architecture already assumes them:
-
-- `sqflite` for meals and completed fasting sessions
 
 ## Architecture
 
@@ -60,7 +57,7 @@ Rules the code follows:
 - Persisted timestamps are the source of truth for the fasting timer. A periodic timer only refreshes the UI. Elapsed and remaining time are always computed from stored values plus the current clock, so the timer stays correct after backgrounding and after the process is killed.
 - Each durable piece of data has one repository that owns it.
 - The current time comes from an injected `Clock`, never from `DateTime.now()` inside business logic.
-- Navigation uses the plain `Navigator` with a bottom navigation shell. No routing package.
+- Navigation uses the plain `Navigator` with a bottom navigation shell. No routing package. A tab is built the first time it is opened and then kept in an `IndexedStack`, so switching tabs does not reload it.
 - The fasting screen observes app lifecycle changes. It stops the display ticker when hidden and reloads the persisted session when the app resumes.
 - Notifications are a projection of the persisted fasting session. A fixed goal-notification ID is canceled before a new target is scheduled, so pause, resume, end, and restore cannot leave an old target behind.
 - Android uses inexact alarms. The timer remains correct if Android delays or does not deliver a notification.
@@ -78,8 +75,8 @@ assets/
   images/               Wordmark
 lib/
   main.dart             Composition root: ProviderScope and app
-  app/                  MaterialApp, theme, and auth gate
-  core/                 Clock abstraction and shared helpers
+  app/                  MaterialApp, theme, auth gate, and tab shell
+  core/                 Clock abstraction, SQLite database, and formatting helpers
   features/
     auth/
       domain/           UserSession model, login form rules
@@ -89,11 +86,16 @@ lib/
       domain/           FastingProtocol, ProtocolSettings, FastingSession
       data/             ProtocolRepository, FastingRepository, and notification service
       presentation/     Riverpod controllers, timer screen, protocol selection and custom editor
+    meals/
+      domain/           Meal model, calorie total, meal form rules
+      data/             MealRepository over sqflite
+      presentation/     MealsController, Meals screen, add/edit and delete sheets
 test/
   app/                  App smoke test
-  core/                 Clock tests
+  core/                 Clock and formatting tests
   features/auth/        Validator, repository, controller, and login screen tests
   features/fasting/     Protocol, timer, persistence, notification, controller, and selection flow tests
+  features/meals/       Validator, SQLite repository, controller, and Meals screen tests
 pubspec.yaml            Package metadata and dependencies
 pubspec.lock            Resolved dependency versions
 ```
@@ -123,7 +125,7 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the fasting screen shows the selected protocol, timer controls, and a way to change the protocol or log out. Android 13 and newer ask for notification permission when the first fast starts.
+The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the Today tab shows the selected protocol, timer controls, and a way to change the protocol or log out. The Meals tab lists today's meals and adds, edits, or deletes them. Android 13 and newer ask for notification permission when the first fast starts.
 
 ## Building the APK
 
@@ -214,6 +216,16 @@ Reason: the persisted session already contains the target timestamp inputs. Rebu
 
 Trade-off: Android uses inexact alarms, so delivery can be delayed by the OS. Notification timing is only a reminder; timer calculations do not depend on it. A failed notification call is logged and skipped, so it cannot block loading or changing a fast. The next transition or restore synchronizes again.
 
+### Meal tracking
+
+Problem: meals are a growing list that later issues will total per day and per week, and the challenge asks for an automatic meal time.
+
+Decision: one `meals` table in a single app database (`core/database.dart`), with the meal time stored as UTC epoch milliseconds and indexed. The time is set once when the meal is added. Editing changes only the name and calories. The Meals screen shows the local calendar day of the injected clock and reloads when the app returns to the foreground, so the list moves to the new day after midnight. Every add, edit, or delete is saved first and the list is then read back from the database.
+
+Reason: storing UTC and filtering by local day boundaries keeps day totals correct across timezones and daylight saving changes. Reading back after each change means the screen always shows what is stored. Keeping every table in one database file gives the schema one version number for future migrations.
+
+Trade-off: re-reading the day after each change is an extra query, which is negligible for one day of meals. The meal time cannot be corrected by hand, which matches the specification but means a meal logged late keeps the time it was logged.
+
 ### Other choices
 
 - The protocol choice is one small record: the selected protocol id plus the custom fasting hours. Custom hours are kept when a preset is selected again, so the custom card stays editable. Presets are constants in code, since they never change and there is nothing to store for them.
@@ -233,7 +245,8 @@ Trade-off: Android uses inexact alarms, so delivery can be delayed by the OS. No
 
 - Login is local only. There is no registration, password recovery, or password verification. The mockup links for those flows were left out on purpose.
 - Android may delay inexact notifications because of Doze mode or vendor battery-management rules. Notification permission can also be denied.
-- Meals, history, and the weekly chart are pending.
+- The Meals screen shows only today. Meals from earlier days stay stored but are not visible or editable until History is implemented.
+- History and the weekly chart are pending.
 - Final signing, release testing, and delivery links are pending.
 
 ## What I Would Improve With More Time
