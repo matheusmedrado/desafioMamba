@@ -19,4 +19,10 @@ abstract final class LoginValidator {
     }
     return null;
   }
+
+  static String? confirmPassword(String? value, String password) {
+    if (value == null || value.isEmpty) return 'Repeat your password.';
+    if (value != password) return 'Passwords do not match.';
+    return null;
+  }
 }

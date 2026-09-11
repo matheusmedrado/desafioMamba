@@ -1,27 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mamba_fast_tracker/core/clock.dart';
+import 'package:mamba_fast_tracker/features/auth/data/auth_repository.dart';
+import 'package:mamba_fast_tracker/features/auth/domain/auth_failure.dart';
 import 'package:mamba_fast_tracker/features/auth/presentation/auth_controller.dart';
-import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
-import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+
+import 'fake_auth_repository.dart';
 
 void main() {
-  final clock = FakeClock(DateTime.utc(2026, 9, 9, 8));
+  late FakeAuthRepository accounts;
 
+  setUp(() => accounts = FakeAuthRepository());
+
+  // A new container with the same accounts behaves like a restarted app.
   ProviderContainer newContainer() {
     final container = ProviderContainer(
-      overrides: [clockProvider.overrideWithValue(clock)],
+      overrides: [authRepositoryProvider.overrideWithValue(accounts)],
     );
     addTearDown(container.dispose);
+    container.listen(authControllerProvider, (_, _) {});
     return container;
   }
-
-  setUp(() {
-    // Storage survives across containers within a test, which simulates
-    // the app process being restarted.
-    SharedPreferencesAsyncPlatform.instance =
-        InMemorySharedPreferencesAsync.empty();
-  });
 
   test('starts signed out', () async {
     final container = newContainer();
@@ -29,25 +27,44 @@ void main() {
     expect(await container.read(authControllerProvider.future), isNull);
   });
 
-  test('login normalizes the email and stamps the clock time', () async {
+  test('sign up signs in with the normalized email', () async {
     final container = newContainer();
     await container.read(authControllerProvider.future);
 
     await container
         .read(authControllerProvider.notifier)
-        .login(email: '  User@Example.com ', password: 'password1');
+        .signUp(email: '  User@Example.com ', password: 'password1');
+    await pumpEventQueue();
 
-    final session = container.read(authControllerProvider).value;
-    expect(session?.email, 'user@example.com');
-    expect(session?.signedInAt, DateTime.utc(2026, 9, 9, 8));
+    expect(
+      container.read(authControllerProvider).value?.email,
+      'user@example.com',
+    );
   });
 
-  test('session is restored by a fresh container', () async {
+  test('a wrong password is rejected and stays signed out', () async {
+    accounts.addAccount('user@example.com', 'password1');
+    final container = newContainer();
+    await container.read(authControllerProvider.future);
+
+    await expectLater(
+      container
+          .read(authControllerProvider.notifier)
+          .signIn(email: 'user@example.com', password: 'password2'),
+      throwsA(AuthFailure.invalidCredentials),
+    );
+    await pumpEventQueue();
+
+    expect(container.read(authControllerProvider).value, isNull);
+  });
+
+  test('the session is restored by a fresh container', () async {
+    accounts.addAccount('user@example.com', 'password1');
     final first = newContainer();
     await first.read(authControllerProvider.future);
     await first
         .read(authControllerProvider.notifier)
-        .login(email: 'user@example.com', password: 'password1');
+        .signIn(email: 'user@example.com', password: 'password1');
 
     final second = newContainer();
 
@@ -55,17 +72,28 @@ void main() {
     expect(restored?.email, 'user@example.com');
   });
 
-  test('logout clears storage so a restart stays signed out', () async {
+  test('sign out ends the session, also after a restart', () async {
+    accounts.addAccount('user@example.com', 'password1');
     final first = newContainer();
     await first.read(authControllerProvider.future);
-    await first
-        .read(authControllerProvider.notifier)
-        .login(email: 'user@example.com', password: 'password1');
+    final auth = first.read(authControllerProvider.notifier);
+    await auth.signIn(email: 'user@example.com', password: 'password1');
 
-    await first.read(authControllerProvider.notifier).logout();
+    await auth.signOut();
+    await pumpEventQueue();
     expect(first.read(authControllerProvider).value, isNull);
 
     final second = newContainer();
     expect(await second.read(authControllerProvider.future), isNull);
+  });
+
+  test('a password reset goes to the normalized email', () async {
+    final container = newContainer();
+
+    await container
+        .read(authControllerProvider.notifier)
+        .sendPasswordReset(' User@Example.com');
+
+    expect(accounts.resetRequests, ['user@example.com']);
   });
 }

@@ -39,7 +39,7 @@ class SettingsSheet extends ConsumerWidget {
               onPressed: () {
                 final auth = ref.read(authControllerProvider.notifier);
                 Navigator.of(context).pop();
-                unawaited(auth.logout());
+                unawaited(auth.signOut());
               },
               icon: const MambaIcon(MambaIcons.logOut, size: 20),
               label: const Text('Log out'),
