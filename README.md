@@ -4,7 +4,7 @@
 
 Flutter app for the Mamba Fast Tracker technical challenge: intermittent fasting and calorie tracking, Android first, all data stored on the device.
 
-The repository currently has local login with a persistent session, fasting protocol selection, a timestamp-based fasting timer with local notifications, meal tracking, and a daily summary with goal status. Product features are implemented issue by issue.
+The repository currently has local login with a persistent session, fasting protocol selection, a timestamp-based fasting timer with local notifications, meal tracking, a daily summary with goal status, and a history of previous days. Product features are implemented issue by issue.
 
 ## Screenshots
 
@@ -20,10 +20,11 @@ Done:
 - Local notifications when a fast starts and when its planned fasting goal is reached. The scheduled notification is restored, rescheduled, or canceled with the active session.
 - Meal tracking: add, edit, and delete today's meals with a name and calories. The meal time is recorded automatically, and meals are stored in SQLite so they remain after restarting the app.
 - Daily summary on Today: calories against a daily calorie limit, fasting time for the day, and whether the day is within goal. Ended fasts are stored in SQLite, so the totals remain after restarting the app.
+- History: previous days with records, newest first, grouped into this week, last week, and earlier. Each day opens a read-only summary with its fasts, meals, and goal status.
 
 Planned from the challenge specification:
 
-- Previous-day summaries and a weekly chart
+- Weekly chart
 
 Remaining work is tracked in [GitHub Issues](https://github.com/matheusmedrado/desafioMamba/issues).
 
@@ -62,6 +63,7 @@ Rules the code follows:
 - Android uses inexact alarms. The timer remains correct if Android delays or does not deliver a notification.
 - A fast is copied to SQLite when it ends. The copy is keyed by the fast id and repeated whenever the current fast loads, so it also recovers an app closed between the two writes.
 - The daily summary is calculated in plain Dart from today's meals, the fasts that ended today, the current fast, and the calorie limit. It recalculates on every timer tick, so a running fast's time stays current.
+- History uses the same daily goal rule as Today. It groups earlier meals and ended fasts by local day in plain Dart, and each day is summarized with `DaySummary`.
 
 ## Project Structure
 
@@ -95,6 +97,9 @@ lib/
       domain/           DaySummary goal rule, calorie limit rules
       data/             CalorieLimitRepository over shared_preferences
       presentation/     Today summary providers, Your day section, calorie limit sheet
+    history/
+      domain/           HistoryDay grouping by local day
+      presentation/     HistoryController, History screen, day summary screen
 test/
   app/                  App smoke test
   core/                 Clock, database upgrade, local day, and formatting tests
@@ -102,6 +107,7 @@ test/
   features/fasting/     Protocol, timer, persistence, completed fasts, notification, controller, and selection flow tests
   features/meals/       Validator, SQLite repository, controller, and Meals screen tests
   features/dashboard/   Goal rule, calorie limit, summary provider, and Your day section tests
+  features/history/     Day grouping, controller, and History screen tests
 pubspec.yaml            Package metadata and dependencies
 pubspec.lock            Resolved dependency versions
 ```
@@ -131,7 +137,7 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the Today tab shows the selected protocol, timer controls, and a summary of the day with calories, fasting time, and goal status. Tap Calories in that summary to change the daily calorie limit. The Meals tab lists today's meals and adds, edits, or deletes them. Android 13 and newer ask for notification permission when the first fast starts.
+The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the Today tab shows the selected protocol, timer controls, and a summary of the day with calories, fasting time, and goal status. Tap Calories in that summary to change the daily calorie limit. The Meals tab lists today's meals and adds, edits, or deletes them. The History tab lists previous days and opens a summary for each one. Android 13 and newer ask for notification permission when the first fast starts.
 
 ## Building the APK
 
@@ -242,6 +248,16 @@ Reason: every fast already has a target, and the mockups judge days by it ("Goal
 
 Trade-off: a fast that crosses midnight adds no time to the day it started. Splitting fasting time at midnight was considered, but it would need the start and end of every pause, and only the total paused time is stored. The calorie limit is one current value rather than a value saved per day.
 
+### History
+
+Problem: previous days must be reviewable from the saved records, with summaries that match those records.
+
+Decision: History lists every day before today that has at least one meal or ended fast, newest first. The meals and fasts before today are read once from their repositories and grouped by local day in plain Dart, and each day is summarized with the same `DaySummary` rule as Today. The day screen is read-only. The list reloads when the app returns to the foreground or the calorie limit changes.
+
+Reason: reusing `DaySummary` keeps History and Today consistent by construction. Grouping in Dart uses the same local day boundaries as the daily queries, which avoids timezone handling inside SQL.
+
+Trade-off: all earlier records are loaded at once. That is small for a personal tracker, but a long history would need paging or a date range. Days with no records are not shown, and past meals cannot be edited.
+
 ### Other choices
 
 - The protocol choice is one small record: the selected protocol id plus the custom fasting hours. Custom hours are kept when a preset is selected again, so the custom card stays editable. Presets are constants in code, since they never change and there is nothing to store for them.
@@ -261,11 +277,13 @@ Trade-off: a fast that crosses midnight adds no time to the day it started. Spli
 
 - Login is local only. There is no registration, password recovery, or password verification. The mockup links for those flows were left out on purpose.
 - Android may delay inexact notifications because of Doze mode or vendor battery-management rules. Notification permission can also be denied.
-- The Meals screen shows only today. Meals from earlier days stay stored but are not visible or editable until History is implemented.
+- Meals from earlier days are read-only. They can be reviewed in History but not edited.
 - A fast counts on the day it ends. A fast that crosses midnight adds no time to the day it started.
-- The calorie limit is a single current value. When History shows earlier days, they will be judged against the current limit.
-- If saving an ended fast to SQLite fails, the error is logged and the copy is retried the next time the current fast loads. If it still fails when a new fast starts, that ended fast is missing from the day totals.
-- History and the weekly chart are pending.
+- The calorie limit is a single current value. Earlier days in History are judged against the current limit.
+- If saving an ended fast to SQLite fails, the error is logged and the copy is retried the next time the current fast loads. If it still fails when a new fast starts, that ended fast is missing from the day totals and History.
+- History loads all earlier records at once and does not page.
+- If the app stays in the foreground past midnight, History and the daily summary update the next time the app returns to the foreground.
+- The weekly chart is pending.
 - Final signing, release testing, and delivery links are pending.
 
 ## What I Would Improve With More Time

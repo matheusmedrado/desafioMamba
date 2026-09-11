@@ -70,6 +70,33 @@ void main() {
     ]);
   });
 
+  test('endedBefore lists fasts that ended on earlier local days', () async {
+    final repository = await newRepository();
+    final crossedMidnight = endedFast(
+      'crossed',
+      DateTime(2026, 9, 9, 20),
+      DateTime(2026, 9, 10, 12),
+    );
+    final yesterday = endedFast(
+      'yesterday',
+      DateTime(2026, 9, 9, 1),
+      DateTime(2026, 9, 9, 17),
+    );
+    final older = endedFast(
+      'older',
+      DateTime(2026, 9, 2, 1),
+      DateTime(2026, 9, 2, 17),
+    );
+    for (final fast in [crossedMidnight, yesterday, older]) {
+      await repository.save(fast);
+    }
+
+    expect(await repository.endedBefore(DateTime(2026, 9, 10, 18)), [
+      older,
+      yesterday,
+    ]);
+  });
+
   test('saving the same fast again keeps one record', () async {
     final repository = await newRepository();
     final fast = endedFast(

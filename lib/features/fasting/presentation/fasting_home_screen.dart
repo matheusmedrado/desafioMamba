@@ -587,12 +587,8 @@ class _ErrorContent extends StatelessWidget {
   }
 }
 
-String _sessionProtocolName(FastingSession session) {
-  final preset = FastingProtocol.presetById(session.protocolId);
-  if (preset != null) return preset.name;
-  final fastingHours = session.target.inHours;
-  return '$fastingHours:${24 - fastingHours}';
-}
+String _sessionProtocolName(FastingSession session) =>
+    FastingProtocol.nameFor(session.protocolId, session.target);
 
 String _formatDuration(Duration duration) {
   final hours = duration.inHours;

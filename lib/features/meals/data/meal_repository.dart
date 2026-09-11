@@ -29,6 +29,17 @@ class MealRepository {
     return rows.map(_fromRow).toList();
   }
 
+  /// Meals eaten before the local day that contains [day], oldest first.
+  Future<List<Meal>> mealsBefore(DateTime day) async {
+    final rows = await _database.query(
+      _table,
+      where: 'eaten_at < ?',
+      whereArgs: [localDayBounds(day).start.millisecondsSinceEpoch],
+      orderBy: 'eaten_at, id',
+    );
+    return rows.map(_fromRow).toList();
+  }
+
   Future<Meal> add({
     required String name,
     required int calories,

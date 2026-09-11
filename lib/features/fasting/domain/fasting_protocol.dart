@@ -56,6 +56,14 @@ class FastingProtocol {
     return null;
   }
 
+  /// Display name for a stored fast, such as `16:8`.
+  static String nameFor(String protocolId, Duration target) {
+    final preset = presetById(protocolId);
+    if (preset != null) return preset.name;
+    final fastingHours = target.inHours;
+    return '$fastingHours:${24 - fastingHours}';
+  }
+
   final String id;
   final int fastingHours;
   final String tag;
