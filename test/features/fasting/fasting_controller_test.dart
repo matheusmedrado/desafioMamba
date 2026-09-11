@@ -1,37 +1,75 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mamba_fast_tracker/core/clock.dart';
+import 'package:mamba_fast_tracker/core/database.dart';
+import 'package:mamba_fast_tracker/features/fasting/data/completed_fast_repository.dart';
 import 'package:mamba_fast_tracker/features/fasting/data/fasting_repository.dart';
 import 'package:mamba_fast_tracker/features/fasting/data/fasting_notification_service.dart';
 import 'package:mamba_fast_tracker/features/fasting/domain/fasting_session.dart';
 import 'package:mamba_fast_tracker/features/fasting/presentation/fasting_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'fake_fasting_notification_service.dart';
 
+/// Simulates a device where the database cannot be written.
+class FailingCompletedFastRepository implements CompletedFastRepository {
+  @override
+  Future<void> save(FastingSession fast) async {
+    throw StateError('Database unavailable.');
+  }
+
+  @override
+  Future<List<FastingSession>> endedOn(DateTime day) async {
+    throw StateError('Database unavailable.');
+  }
+}
+
 void main() {
-  setUp(() {
+  setUpAll(sqfliteFfiInit);
+
+  late Database database;
+
+  setUp(() async {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
+    database = await AppDatabase.open(databaseFactoryFfi, inMemoryDatabasePath);
   });
+
+  tearDown(() => database.close());
 
   ProviderContainer newContainer(
     FakeClock clock, {
     FastingNotificationService? notifications,
+    CompletedFastRepository? completedFasts,
   }) {
     final container = ProviderContainer(
       overrides: [
         clockProvider.overrideWithValue(clock),
+        databaseProvider.overrideWith((ref) => database),
         fastingNotificationServiceProvider.overrideWithValue(
           notifications ?? RecordingFastingNotificationService(),
         ),
+        if (completedFasts != null)
+          completedFastRepositoryProvider.overrideWith((ref) => completedFasts),
       ],
     );
     addTearDown(container.dispose);
     // The provider is auto-disposed. Keep it alive like the timer screen does.
     container.listen(fastingControllerProvider, (_, _) {});
     return container;
+  }
+
+  Future<List<FastingSession>> completedOn(
+    ProviderContainer container,
+    DateTime day,
+  ) async {
+    final completed = await container.read(
+      completedFastRepositoryProvider.future,
+    );
+    return completed.endedOn(day);
   }
 
   test(
@@ -120,6 +158,61 @@ void main() {
     expect(restored!.status, FastingStatus.ended);
     expect(restored.endedAt, clock.now());
     expect(restored.elapsedAt(clock.now()), const Duration(hours: 4));
+  });
+
+  test('ending a fast copies it to completed fasts', () async {
+    final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
+    final container = newContainer(clock);
+    final controller = container.read(fastingControllerProvider.notifier);
+    await container.read(fastingControllerProvider.future);
+
+    await controller.start();
+    clock.advance(const Duration(hours: 3));
+    expect(await completedOn(container, clock.now()), isEmpty);
+
+    await controller.end();
+    final ended = container.read(fastingControllerProvider).value!;
+
+    expect(await completedOn(container, clock.now()), [ended]);
+  });
+
+  test(
+    'an ended fast that was not copied is copied once when it loads',
+    () async {
+      final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
+      // The app closed after saving the end but before copying the fast.
+      final ended = FastingSession.start(
+        id: 'fast-1',
+        protocolId: '16:8',
+        target: const Duration(hours: 16),
+        startedAt: DateTime.utc(2026, 9, 9, 20),
+      ).endAt(DateTime.utc(2026, 9, 10, 7));
+      await FastingRepository(SharedPreferencesAsync()).save(ended);
+
+      final container = newContainer(clock);
+      expect(await container.read(fastingControllerProvider.future), ended);
+      await container.read(fastingControllerProvider.notifier).restore();
+
+      expect(await completedOn(container, clock.now()), [ended]);
+    },
+  );
+
+  test('a failed copy to completed fasts does not block ending', () async {
+    final clock = FakeClock(DateTime.utc(2026, 9, 10, 8));
+    final container = newContainer(
+      clock,
+      completedFasts: FailingCompletedFastRepository(),
+    );
+    final controller = container.read(fastingControllerProvider.notifier);
+    await container.read(fastingControllerProvider.future);
+
+    await controller.start();
+    clock.advance(const Duration(hours: 2));
+    await controller.end();
+
+    final ended = container.read(fastingControllerProvider).value!;
+    expect(ended.status, FastingStatus.ended);
+    expect(await FastingRepository(SharedPreferencesAsync()).load(), ended);
   });
 
   test('syncs notifications after each session transition', () async {

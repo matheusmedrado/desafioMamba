@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/clock.dart';
+import '../data/completed_fast_repository.dart';
 import '../data/fasting_repository.dart';
 import '../data/fasting_notification_service.dart';
 import '../domain/fasting_session.dart';
@@ -20,6 +21,7 @@ class FastingController extends AsyncNotifier<FastingSession?> {
   Future<FastingSession?> build() async {
     ref.onDispose(_stopTicker);
     final session = await ref.watch(fastingRepositoryProvider).load();
+    await _recordIfEnded(session);
     await _syncNotifications(session);
     _syncTicker(session);
     return session;
@@ -68,6 +70,7 @@ class FastingController extends AsyncNotifier<FastingSession?> {
   Future<void> restore() async {
     try {
       final session = await ref.read(fastingRepositoryProvider).load();
+      await _recordIfEnded(session);
       await _syncNotifications(session);
       state = AsyncData(session);
       _syncTicker(session);
@@ -110,12 +113,35 @@ class FastingController extends AsyncNotifier<FastingSession?> {
     // Persist before exposing the new state so a restart cannot observe a
     // transition that was only applied in memory.
     await ref.read(fastingRepositoryProvider).save(session);
+    await _recordIfEnded(session);
     if (showStartedNotification) {
       await _notify((notifications) => notifications.showFastStarted());
     }
     await _syncNotifications(session);
     state = AsyncData(session);
     _syncTicker(session);
+  }
+
+  /// Copies an ended fast to completed storage, so day totals keep it after
+  /// the next fast replaces the current record.
+  ///
+  /// The copy is keyed by the fast id. Repeating it on every load is harmless
+  /// and covers an app closed between saving the end and copying it. A failed
+  /// copy is logged and skipped so the timer keeps working. The next load
+  /// tries again while this fast is still the current record.
+  Future<void> _recordIfEnded(FastingSession? session) async {
+    if (session == null || session.status != FastingStatus.ended) return;
+    try {
+      final completed = await ref.read(completedFastRepositoryProvider.future);
+      await completed.save(session);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Saving the completed fast failed',
+        name: 'fasting.history',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   Future<void> _syncNotifications(FastingSession? session) {

@@ -12,6 +12,18 @@ void main() {
     expect(formatClockTime(DateTime(2026, 9, 9, 16, 20)), '16:20');
   });
 
+  test('formatHoursMinutes pads minutes and drops seconds', () {
+    expect(formatHoursMinutes(Duration.zero), '0h 00m');
+    expect(
+      formatHoursMinutes(const Duration(minutes: 5, seconds: 59)),
+      '0h 05m',
+    );
+    expect(
+      formatHoursMinutes(const Duration(hours: 16, minutes: 30)),
+      '16h 30m',
+    );
+  });
+
   test('formatThousands groups digits by three', () {
     expect(formatThousands(0), '0');
     expect(formatThousands(999), '999');

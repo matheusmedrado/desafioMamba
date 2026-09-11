@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
 import '../../../core/clock.dart';
 import '../../../features/auth/presentation/auth_controller.dart';
+import '../../dashboard/presentation/day_summary_section.dart';
 import '../domain/fasting_protocol.dart';
 import '../domain/fasting_session.dart';
 import 'fasting_controller.dart';
@@ -101,6 +102,8 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
                     ),
                   ),
                 ),
+              const SizedBox(height: 32),
+              const DaySummarySection(),
               const SizedBox(height: 24),
               Center(
                 child: Text(

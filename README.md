@@ -4,7 +4,7 @@
 
 Flutter app for the Mamba Fast Tracker technical challenge: intermittent fasting and calorie tracking, Android first, all data stored on the device.
 
-The repository currently has local login with a persistent session, fasting protocol selection, a timestamp-based fasting timer with local notifications, and meal tracking. Product features are implemented issue by issue.
+The repository currently has local login with a persistent session, fasting protocol selection, a timestamp-based fasting timer with local notifications, meal tracking, and a daily summary with goal status. Product features are implemented issue by issue.
 
 ## Screenshots
 
@@ -19,12 +19,11 @@ Done:
 - Fasting timer with start, pause, resume, and manual end controls. Elapsed and remaining time are restored from persisted timestamps after backgrounding or restarting the app.
 - Local notifications when a fast starts and when its planned fasting goal is reached. The scheduled notification is restored, rescheduled, or canceled with the active session.
 - Meal tracking: add, edit, and delete today's meals with a name and calories. The meal time is recorded automatically, and meals are stored in SQLite so they remain after restarting the app.
+- Daily summary on Today: calories against a daily calorie limit, fasting time for the day, and whether the day is within goal. Ended fasts are stored in SQLite, so the totals remain after restarting the app.
 
 Planned from the challenge specification:
 
-- Daily calorie and fasting totals with goal status
 - Previous-day summaries and a weekly chart
-- Local data persistence
 
 Remaining work is tracked in [GitHub Issues](https://github.com/matheusmedrado/desafioMamba/issues).
 
@@ -32,8 +31,8 @@ Remaining work is tracked in [GitHub Issues](https://github.com/matheusmedrado/d
 
 - Flutter 3.47.2 with Dart 3.13.2
 - `flutter_riverpod` for state management and dependency injection
-- `shared_preferences` for small single-record data such as the session
-- `sqflite` for meals, with `path` to build the database file path. Completed fasting sessions will use the same database.
+- `shared_preferences` for small single-record data such as the session and the calorie limit
+- `sqflite` for meals and ended fasts, with `path` to build the database file path
 - `flutter_local_notifications` for Android start and fasting-goal notifications
 - `timezone` and `flutter_timezone` for scheduling in the device's local timezone
 - Manrope (SIL Open Font License) bundled as the app font
@@ -48,7 +47,7 @@ Feature-first layout with a small shared core. Each feature keeps its own `domai
 
 Responsibilities:
 
-- `domain`: plain Dart models and calculations. No Flutter imports. This is where fasting time math lives so it can be unit tested with a fake clock.
+- `domain`: plain Dart models and calculations. No Flutter imports. This is where fasting time math and the daily goal rule live, so they can be unit tested with a fake clock.
 - `data`: repositories that own persistence for one kind of data.
 - `presentation`: Riverpod notifiers that act as view models, plus widgets that render state and forward user actions.
 
@@ -61,6 +60,8 @@ Rules the code follows:
 - The fasting screen observes app lifecycle changes. It stops the display ticker when hidden and reloads the persisted session when the app resumes.
 - Notifications are a projection of the persisted fasting session. A fixed goal-notification ID is canceled before a new target is scheduled, so pause, resume, end, and restore cannot leave an old target behind.
 - Android uses inexact alarms. The timer remains correct if Android delays or does not deliver a notification.
+- A fast is copied to SQLite when it ends. The copy is keyed by the fast id and repeated whenever the current fast loads, so it also recovers an app closed between the two writes.
+- The daily summary is calculated in plain Dart from today's meals, the fasts that ended today, the current fast, and the calorie limit. It recalculates on every timer tick, so a running fast's time stays current.
 
 ## Project Structure
 
@@ -76,7 +77,7 @@ assets/
 lib/
   main.dart             Composition root: ProviderScope and app
   app/                  MaterialApp, theme, auth gate, and tab shell
-  core/                 Clock abstraction, SQLite database, and formatting helpers
+  core/                 Clock, SQLite database, local day boundaries, and formatting helpers
   features/
     auth/
       domain/           UserSession model, login form rules
@@ -84,18 +85,23 @@ lib/
       presentation/     AuthController, LoginScreen
     fasting/
       domain/           FastingProtocol, ProtocolSettings, FastingSession
-      data/             ProtocolRepository, FastingRepository, and notification service
+      data/             ProtocolRepository, FastingRepository, CompletedFastRepository, and notification service
       presentation/     Riverpod controllers, timer screen, protocol selection and custom editor
     meals/
       domain/           Meal model, calorie total, meal form rules
       data/             MealRepository over sqflite
       presentation/     MealsController, Meals screen, add/edit and delete sheets
+    dashboard/
+      domain/           DaySummary goal rule, calorie limit rules
+      data/             CalorieLimitRepository over shared_preferences
+      presentation/     Today summary providers, Your day section, calorie limit sheet
 test/
   app/                  App smoke test
-  core/                 Clock and formatting tests
+  core/                 Clock, database upgrade, local day, and formatting tests
   features/auth/        Validator, repository, controller, and login screen tests
-  features/fasting/     Protocol, timer, persistence, notification, controller, and selection flow tests
+  features/fasting/     Protocol, timer, persistence, completed fasts, notification, controller, and selection flow tests
   features/meals/       Validator, SQLite repository, controller, and Meals screen tests
+  features/dashboard/   Goal rule, calorie limit, summary provider, and Your day section tests
 pubspec.yaml            Package metadata and dependencies
 pubspec.lock            Resolved dependency versions
 ```
@@ -125,7 +131,7 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the Today tab shows the selected protocol, timer controls, and a way to change the protocol or log out. The Meals tab lists today's meals and adds, edits, or deletes them. Android 13 and newer ask for notification permission when the first fast starts.
+The app opens on the login screen. Any well-formed email and a password with at least 8 characters sign you in. After that the Today tab shows the selected protocol, timer controls, and a summary of the day with calories, fasting time, and goal status. Tap Calories in that summary to change the daily calorie limit. The Meals tab lists today's meals and adds, edits, or deletes them. Android 13 and newer ask for notification permission when the first fast starts.
 
 ## Building the APK
 
@@ -226,10 +232,20 @@ Reason: storing UTC and filtering by local day boundaries keeps day totals corre
 
 Trade-off: re-reading the day after each change is an extra query, which is negligible for one day of meals. The meal time cannot be corrected by hand, which matches the specification but means a meal logged late keeps the time it was logged.
 
+### Daily goal and day boundaries
+
+Problem: the specification asks whether the user is within the goal, but it does not define the goal or which day a fast belongs to.
+
+Decision: a day is within goal when its calories are at or under a daily calorie limit and a fast credited to that day reached its own target. The limit is 2,000 kcal by default and can be set from 500 to 5,000 on Today. A fast is credited to the local calendar day it ends, and the fast that has not ended counts toward today. Today reads "In progress" until the result is known. It becomes "Outside" as soon as calories go over the limit, or when the day's fast ended short of its target and no fast is still open. Ended fasts are copied to a `fasting_sessions` table (database version 2), so starting a new fast no longer replaces the previous one.
+
+Reason: every fast already has a target, and the mockups judge days by it ("Goal reached", "Ended early"). The calorie limit adds the calorie side of the goal. Crediting a fast to the day it ends is exact with the stored fields and matches the day details mockup, which shows a fast that started the evening before. Each fast is compared with its own target, so changing the protocol later does not change past results.
+
+Trade-off: a fast that crosses midnight adds no time to the day it started. Splitting fasting time at midnight was considered, but it would need the start and end of every pause, and only the total paused time is stored. The calorie limit is one current value rather than a value saved per day.
+
 ### Other choices
 
 - The protocol choice is one small record: the selected protocol id plus the custom fasting hours. Custom hours are kept when a preset is selected again, so the custom card stays editable. Presets are constants in code, since they never change and there is nothing to store for them.
-- Plain `Navigator` instead of a routing package. Three tabs and a handful of pushed screens do not justify one.
+- Plain `Navigator` instead of a routing package. A few tabs and a handful of pushed screens do not justify one.
 - Manrope is bundled as an asset instead of fetched at runtime, so the app renders correctly offline and on first launch.
 - The Dockerfile installs the toolchain from the official Flutter and Android archives instead of a community image, so the Flutter version can be pinned to exactly what CI uses.
 - Android is the only generated platform because the challenge requires an APK or AAB.
@@ -246,6 +262,9 @@ Trade-off: re-reading the day after each change is an extra query, which is negl
 - Login is local only. There is no registration, password recovery, or password verification. The mockup links for those flows were left out on purpose.
 - Android may delay inexact notifications because of Doze mode or vendor battery-management rules. Notification permission can also be denied.
 - The Meals screen shows only today. Meals from earlier days stay stored but are not visible or editable until History is implemented.
+- A fast counts on the day it ends. A fast that crosses midnight adds no time to the day it started.
+- The calorie limit is a single current value. When History shows earlier days, they will be judged against the current limit.
+- If saving an ended fast to SQLite fails, the error is logged and the copy is retried the next time the current fast loads. If it still fails when a new fast starts, that ended fast is missing from the day totals.
 - History and the weekly chart are pending.
 - Final signing, release testing, and delivery links are pending.
 
