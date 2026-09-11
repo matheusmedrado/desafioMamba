@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database.dart';
+import '../../../core/local_day.dart';
 import '../domain/meal.dart';
 
 /// Owns persisted meals.
@@ -15,15 +16,14 @@ class MealRepository {
   /// Meals eaten during the local calendar day that contains [day], oldest
   /// first.
   Future<List<Meal>> mealsOn(DateTime day) async {
-    final local = day.toLocal();
-    // Built from calendar fields so a day with a DST change still ends at the
-    // next local midnight.
-    final start = DateTime(local.year, local.month, local.day);
-    final end = DateTime(local.year, local.month, local.day + 1);
+    final bounds = localDayBounds(day);
     final rows = await _database.query(
       _table,
       where: 'eaten_at >= ? AND eaten_at < ?',
-      whereArgs: [start.millisecondsSinceEpoch, end.millisecondsSinceEpoch],
+      whereArgs: [
+        bounds.start.millisecondsSinceEpoch,
+        bounds.end.millisecondsSinceEpoch,
+      ],
       orderBy: 'eaten_at, id',
     );
     return rows.map(_fromRow).toList();

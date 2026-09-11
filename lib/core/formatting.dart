@@ -37,6 +37,12 @@ String formatClockTime(DateTime time) {
       '${local.minute.toString().padLeft(2, '0')}';
 }
 
+/// Formats a duration as whole hours and minutes, such as "5h 41m".
+String formatHoursMinutes(Duration duration) {
+  final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+  return '${duration.inHours}h ${minutes}m';
+}
+
 /// Formats a non-negative whole number with thousands separators, such as
 /// "1,240".
 String formatThousands(int value) {

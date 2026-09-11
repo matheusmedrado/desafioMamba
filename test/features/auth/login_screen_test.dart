@@ -2,24 +2,39 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mamba_fast_tracker/app/app.dart';
+import 'package:mamba_fast_tracker/core/database.dart';
 import 'package:mamba_fast_tracker/features/fasting/data/fasting_notification_service.dart';
 import 'package:mamba_fast_tracker/features/auth/presentation/login_screen.dart';
 import 'package:mamba_fast_tracker/features/fasting/presentation/fasting_home_screen.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../fasting/fake_fasting_notification_service.dart';
 
 void main() {
-  setUp(() {
+  setUpAll(sqfliteFfiInit);
+
+  late Database database;
+
+  setUp(() async {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
+    // The isolate-based factory does not complete inside the fake async zone
+    // that widget tests run in.
+    database = await AppDatabase.open(
+      databaseFactoryFfiNoIsolate,
+      inMemoryDatabasePath,
+    );
   });
+
+  tearDown(() => database.close());
 
   Future<void> pumpApp(WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          databaseProvider.overrideWith((ref) => database),
           fastingNotificationServiceProvider.overrideWithValue(
             RecordingFastingNotificationService(),
           ),
