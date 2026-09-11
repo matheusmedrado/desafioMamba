@@ -38,6 +38,8 @@ class FastingWindowBar extends StatelessWidget {
           child: SizedBox(
             height: height,
             child: Row(
+              // Childless ColoredBoxes take no height unless stretched.
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
                   flex: fastingHours,
