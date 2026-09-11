@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mamba_fast_tracker/app/theme.dart';
 import 'package:mamba_fast_tracker/core/clock.dart';
 import 'package:mamba_fast_tracker/core/database.dart';
+import 'package:mamba_fast_tracker/features/auth/presentation/auth_controller.dart';
 import 'package:mamba_fast_tracker/features/dashboard/presentation/day_summary_section.dart';
 import 'package:mamba_fast_tracker/features/fasting/data/completed_fast_repository.dart';
 import 'package:mamba_fast_tracker/features/fasting/data/fasting_notification_service.dart';
@@ -36,6 +37,7 @@ void main() {
   Future<void> pumpSection(WidgetTester tester, FakeClock clock) async {
     final container = ProviderContainer(
       overrides: [
+        currentUserIdProvider.overrideWithValue(''),
         clockProvider.overrideWithValue(clock),
         databaseProvider.overrideWith((ref) => database),
         fastingNotificationServiceProvider.overrideWithValue(
@@ -74,9 +76,11 @@ void main() {
   testWidgets('shows stored totals and updates when the limit changes', (
     tester,
   ) async {
-    await MealRepository(database)
-        .add(name: 'Pasta', calories: 1500, eatenAt: DateTime(2026, 9, 10, 12));
-    await CompletedFastRepository(database).save(
+    await MealRepository(
+      database,
+      '',
+    ).add(name: 'Pasta', calories: 1500, eatenAt: DateTime(2026, 9, 10, 12));
+    await CompletedFastRepository(database, '').save(
       FastingSession.start(
         id: 'fast-1',
         protocolId: '16:8',

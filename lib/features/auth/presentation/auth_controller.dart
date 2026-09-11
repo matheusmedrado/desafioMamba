@@ -35,3 +35,9 @@ class AuthController extends StreamNotifier<AuthUser?> {
 
 final authControllerProvider =
     StreamNotifierProvider<AuthController, AuthUser?>(AuthController.new);
+
+/// Owner of the stored data. Empty while signed out, which is also how data
+/// saved before accounts existed is stored.
+final currentUserIdProvider = Provider<String>(
+  (ref) => ref.watch(authControllerProvider).value?.id ?? '',
+);

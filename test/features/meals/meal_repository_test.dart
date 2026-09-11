@@ -10,6 +10,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 void main() {
   setUpAll(sqfliteFfiInit);
 
+  const user = 'user-1';
+
   Future<Database> openInMemory() async {
     final database = await AppDatabase.open(
       databaseFactoryFfi,
@@ -19,8 +21,12 @@ void main() {
     return database;
   }
 
+  Future<MealRepository> newRepository() async {
+    return MealRepository(await openInMemory(), user);
+  }
+
   test('adds a meal and reads it back on the same day', () async {
-    final repository = MealRepository(await openInMemory());
+    final repository = await newRepository();
     final eatenAt = DateTime(2026, 9, 10, 12, 30);
 
     final meal = await repository.add(
@@ -36,7 +42,7 @@ void main() {
   test(
     'lists only meals inside the local calendar day, oldest first',
     () async {
-      final repository = MealRepository(await openInMemory());
+      final repository = await newRepository();
       Future<Meal> addAt(DateTime time) =>
           repository.add(name: 'Meal', calories: 100, eatenAt: time);
 
@@ -53,7 +59,7 @@ void main() {
   );
 
   test('update changes name and calories but keeps the meal time', () async {
-    final repository = MealRepository(await openInMemory());
+    final repository = await newRepository();
     final meal = await repository.add(
       name: 'Salad',
       calories: 300,
@@ -73,7 +79,7 @@ void main() {
   test(
     'updating a deleted meal fails instead of silently doing nothing',
     () async {
-      final repository = MealRepository(await openInMemory());
+      final repository = await newRepository();
       final meal = await repository.add(
         name: 'Toast',
         calories: 180,
@@ -96,7 +102,7 @@ void main() {
     final day = DateTime(2026, 9, 10);
 
     final first = await AppDatabase.open(databaseFactoryFfi, path);
-    final repository = MealRepository(first);
+    final repository = MealRepository(first, user);
     final kept = await repository.add(
       name: 'Eggs',
       calories: 210,
@@ -114,7 +120,7 @@ void main() {
     final second = await AppDatabase.open(databaseFactoryFfi, path);
     addTearDown(second.close);
 
-    expect(await MealRepository(second).mealsOn(day), [
+    expect(await MealRepository(second, user).mealsOn(day), [
       kept.copyWith(name: 'Scrambled eggs'),
     ]);
   });
@@ -122,7 +128,7 @@ void main() {
   test(
     'mealsBefore lists meals from earlier local days, oldest first',
     () async {
-      final repository = MealRepository(await openInMemory());
+      final repository = await newRepository();
       Future<Meal> addAt(DateTime time) =>
           repository.add(name: 'Meal', calories: 100, eatenAt: time);
 
@@ -136,6 +142,44 @@ void main() {
       ]);
     },
   );
+
+  test('a meal belongs to the account that added it', () async {
+    final database = await openInMemory();
+    final mine = MealRepository(database, user);
+    final other = MealRepository(database, 'user-2');
+    final day = DateTime(2026, 9, 10);
+
+    final meal = await mine.add(
+      name: 'Oat bowl',
+      calories: 420,
+      eatenAt: DateTime(2026, 9, 10, 12),
+    );
+    await other.add(
+      name: 'Pasta',
+      calories: 800,
+      eatenAt: DateTime(2026, 9, 10, 20),
+    );
+
+    expect(await mine.mealsOn(day), [meal]);
+    expect(await mine.mealsBefore(DateTime(2026, 9, 11)), [meal]);
+    expect((await other.mealsOn(day)).single.name, 'Pasta');
+  });
+
+  test('another account cannot change or delete a meal', () async {
+    final database = await openInMemory();
+    final mine = MealRepository(database, user);
+    final other = MealRepository(database, 'user-2');
+    final meal = await mine.add(
+      name: 'Oat bowl',
+      calories: 420,
+      eatenAt: DateTime(2026, 9, 10, 12),
+    );
+
+    expect(() => other.update(meal.copyWith(calories: 10)), throwsStateError);
+    await other.delete(meal.id);
+
+    expect(await mine.mealsOn(DateTime(2026, 9, 10)), [meal]);
+  });
 
   test('totalCalories sums the meals', () {
     final eatenAt = DateTime.utc(2026, 9, 10, 12);

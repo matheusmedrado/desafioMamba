@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mamba_fast_tracker/core/clock.dart';
 import 'package:mamba_fast_tracker/core/database.dart';
+import 'package:mamba_fast_tracker/features/auth/presentation/auth_controller.dart';
 import 'package:mamba_fast_tracker/features/dashboard/domain/day_summary.dart';
 import 'package:mamba_fast_tracker/features/dashboard/presentation/today_summary.dart';
 import 'package:mamba_fast_tracker/features/fasting/data/completed_fast_repository.dart';
@@ -22,7 +23,7 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
     database = await AppDatabase.open(databaseFactoryFfi, inMemoryDatabasePath);
 
-    final meals = MealRepository(database);
+    final meals = MealRepository(database, '');
     await meals.add(
       name: 'Pasta',
       calories: 1800,
@@ -33,7 +34,7 @@ void main() {
       calories: 300,
       eatenAt: DateTime(2026, 9, 10, 8),
     );
-    await CompletedFastRepository(database).save(
+    await CompletedFastRepository(database, '').save(
       FastingSession.start(
         id: 'fast-1',
         protocolId: '16:8',
@@ -48,6 +49,7 @@ void main() {
   ProviderContainer newContainer(FakeClock clock) {
     final container = ProviderContainer(
       overrides: [
+        currentUserIdProvider.overrideWithValue(''),
         clockProvider.overrideWithValue(clock),
         databaseProvider.overrideWith((ref) => database),
       ],

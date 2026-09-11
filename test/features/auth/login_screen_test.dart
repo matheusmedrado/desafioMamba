@@ -19,11 +19,13 @@ void main() {
 
   late Database database;
   late FakeAuthRepository accounts;
+  late RecordingFastingNotificationService notifications;
 
   setUp(() async {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
     accounts = FakeAuthRepository();
+    notifications = RecordingFastingNotificationService();
     // The isolate-based factory does not complete in the widget test zone.
     database = await AppDatabase.open(
       databaseFactoryFfiNoIsolate,
@@ -43,9 +45,7 @@ void main() {
         overrides: [
           authRepositoryProvider.overrideWithValue(accounts),
           databaseProvider.overrideWith((ref) => database),
-          fastingNotificationServiceProvider.overrideWithValue(
-            RecordingFastingNotificationService(),
-          ),
+          fastingNotificationServiceProvider.overrideWithValue(notifications),
         ],
         child: const MambaApp(),
       ),
@@ -153,5 +153,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LoginScreen), findsOneWidget);
+    expect(notifications.cancelAllCount, 1);
   });
 }

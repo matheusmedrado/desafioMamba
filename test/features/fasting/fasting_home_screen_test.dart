@@ -5,6 +5,7 @@ import 'package:mamba_fast_tracker/app/home_shell.dart';
 import 'package:mamba_fast_tracker/app/theme.dart';
 import 'package:mamba_fast_tracker/core/clock.dart';
 import 'package:mamba_fast_tracker/core/database.dart';
+import 'package:mamba_fast_tracker/features/auth/presentation/auth_controller.dart';
 import 'package:mamba_fast_tracker/features/fasting/data/fasting_notification_service.dart';
 import 'package:mamba_fast_tracker/features/fasting/presentation/end_fast_sheet.dart';
 import 'package:mamba_fast_tracker/features/fasting/presentation/fasting_controller.dart';
@@ -44,6 +45,7 @@ void main() {
 
     final container = ProviderContainer(
       overrides: [
+        currentUserIdProvider.overrideWithValue(''),
         clockProvider.overrideWithValue(clock),
         databaseProvider.overrideWith((ref) => database),
         fastingNotificationServiceProvider.overrideWithValue(

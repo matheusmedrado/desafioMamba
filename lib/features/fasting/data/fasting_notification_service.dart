@@ -12,6 +12,9 @@ abstract class FastingNotificationService {
   Future<void> showFastStarted();
 
   Future<void> sync(FastingSession? session, DateTime now);
+
+  /// Removes every fasting notification, such as when the user logs out.
+  Future<void> cancelAll();
 }
 
 /// Local notification implementation for Android.
@@ -77,6 +80,14 @@ class LocalFastingNotificationService implements FastingNotificationService {
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
+  }
+
+  @override
+  Future<void> cancelAll() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+    await _ensureInitialized();
+    await _plugin.cancel(id: _startNotificationId);
+    await _plugin.cancel(id: _goalNotificationId);
   }
 
   Future<void> _ensureInitialized() async {

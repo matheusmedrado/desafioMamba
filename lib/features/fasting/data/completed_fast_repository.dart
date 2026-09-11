@@ -3,18 +3,20 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database.dart';
 import '../../../core/local_day.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../domain/fasting_session.dart';
 
-/// Owns fasts that have ended.
+/// Owns the fasts of one user that have ended.
 ///
 /// The fast that is still running or paused is owned by `FastingRepository`.
 /// A fast is copied here when it ends.
 class CompletedFastRepository {
-  CompletedFastRepository(this._database);
+  CompletedFastRepository(this._database, this._userId);
 
   static const _table = 'fasting_sessions';
 
   final Database _database;
+  final String _userId;
 
   /// Saves an ended fast. Saving the same fast again replaces its record, so
   /// repeating the copy after an interrupted end does not duplicate it.
@@ -25,6 +27,7 @@ class CompletedFastRepository {
     }
     await _database.insert(_table, {
       'id': fast.id,
+      'user_id': _userId,
       'protocol_id': fast.protocolId,
       'target_ms': fast.target.inMilliseconds,
       'started_at': fast.startedAt.millisecondsSinceEpoch,
@@ -39,8 +42,9 @@ class CompletedFastRepository {
     final bounds = localDayBounds(day);
     final rows = await _database.query(
       _table,
-      where: 'ended_at >= ? AND ended_at < ?',
+      where: 'user_id = ? AND ended_at >= ? AND ended_at < ?',
       whereArgs: [
+        _userId,
         bounds.start.millisecondsSinceEpoch,
         bounds.end.millisecondsSinceEpoch,
       ],
@@ -53,8 +57,8 @@ class CompletedFastRepository {
   Future<List<FastingSession>> endedBefore(DateTime day) async {
     final rows = await _database.query(
       _table,
-      where: 'ended_at < ?',
-      whereArgs: [localDayBounds(day).start.millisecondsSinceEpoch],
+      where: 'user_id = ? AND ended_at < ?',
+      whereArgs: [_userId, localDayBounds(day).start.millisecondsSinceEpoch],
       orderBy: 'ended_at, id',
     );
     return rows.map(_fromRow).toList();
@@ -78,6 +82,9 @@ class CompletedFastRepository {
 
 final completedFastRepositoryProvider = FutureProvider<CompletedFastRepository>(
   (ref) async {
-    return CompletedFastRepository(await ref.watch(databaseProvider.future));
+    return CompletedFastRepository(
+      await ref.watch(userDatabaseProvider.future),
+      ref.watch(currentUserIdProvider),
+    );
   },
 );

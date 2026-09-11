@@ -11,14 +11,16 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
   });
 
+  FastingSession sessionWithId(String id) => FastingSession.start(
+    id: id,
+    protocolId: '18:6',
+    target: const Duration(hours: 18),
+    startedAt: DateTime.utc(2026, 9, 10, 8),
+  );
+
   test('saves and loads the active session', () async {
     final repository = FastingRepository(SharedPreferencesAsync());
-    final session = FastingSession.start(
-      id: 'fast-1',
-      protocolId: '18:6',
-      target: const Duration(hours: 18),
-      startedAt: DateTime.utc(2026, 9, 10, 8),
-    );
+    final session = sessionWithId('fast-1');
 
     await repository.save(session);
 
@@ -44,5 +46,35 @@ void main() {
 
     expect(await repository.load(), isNull);
     expect(await prefs.getString('fasting.active_session'), isNull);
+  });
+
+  test('each account keeps its own active session', () async {
+    final prefs = SharedPreferencesAsync();
+    final mine = FastingRepository(prefs, userId: 'user-1');
+    final other = FastingRepository(prefs, userId: 'user-2');
+
+    await mine.save(sessionWithId('mine'));
+    await other.save(sessionWithId('theirs'));
+
+    expect((await mine.load())?.id, 'mine');
+    expect((await other.load())?.id, 'theirs');
+
+    await mine.clear();
+    expect(await mine.load(), isNull);
+    expect((await other.load())?.id, 'theirs');
+  });
+
+  test('a session saved before accounts goes to the first account', () async {
+    final prefs = SharedPreferencesAsync();
+    final session = sessionWithId('fast-1');
+    await FastingRepository(prefs).save(session);
+
+    final first = FastingRepository(prefs, userId: 'user-1');
+    expect(await first.load(), session);
+    expect(await prefs.getString(FastingRepository.baseKey), isNull);
+
+    final second = FastingRepository(prefs, userId: 'user-2');
+    expect(await second.load(), isNull);
+    expect(await first.load(), session);
   });
 }

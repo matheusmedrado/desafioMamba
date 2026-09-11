@@ -7,13 +7,19 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 void main() {
   setUpAll(sqfliteFfiInit);
 
-  Future<CompletedFastRepository> newRepository() async {
+  const user = 'user-1';
+
+  Future<Database> openInMemory() async {
     final database = await AppDatabase.open(
       databaseFactoryFfi,
       inMemoryDatabasePath,
     );
     addTearDown(database.close);
-    return CompletedFastRepository(database);
+    return database;
+  }
+
+  Future<CompletedFastRepository> newRepository() async {
+    return CompletedFastRepository(await openInMemory(), user);
   }
 
   FastingSession endedFast(
@@ -109,6 +115,26 @@ void main() {
     await repository.save(fast);
 
     expect(await repository.endedOn(DateTime(2026, 9, 10)), [fast]);
+  });
+
+  test('a fast belongs to the account that ended it', () async {
+    final database = await openInMemory();
+    final mine = CompletedFastRepository(database, user);
+    final other = CompletedFastRepository(database, 'user-2');
+    final myFast = endedFast(
+      'mine',
+      DateTime(2026, 9, 10, 1),
+      DateTime(2026, 9, 10, 17),
+    );
+
+    await mine.save(myFast);
+    await other.save(
+      endedFast('theirs', DateTime(2026, 9, 10, 2), DateTime(2026, 9, 10, 18)),
+    );
+
+    expect(await mine.endedOn(DateTime(2026, 9, 10)), [myFast]);
+    expect(await mine.endedBefore(DateTime(2026, 9, 11)), [myFast]);
+    expect((await other.endedOn(DateTime(2026, 9, 10))).single.id, 'theirs');
   });
 
   test('rejects a fast that has not ended', () async {
