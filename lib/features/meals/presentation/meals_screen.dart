@@ -9,7 +9,8 @@ import '../../../app/screen_header.dart';
 import '../../../app/theme.dart';
 import '../../../core/clock.dart';
 import '../../../core/formatting.dart';
-import '../../auth/presentation/settings_sheet.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../auth/presentation/profile_button.dart';
 import '../domain/meal.dart';
 import 'meal_sheets.dart';
 import 'meals_controller.dart';
@@ -48,6 +49,7 @@ class _MealsScreenState extends ConsumerState<MealsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final mealsState = ref.watch(mealsControllerProvider);
     final now = ref.read(clockProvider).now();
 
@@ -63,7 +65,7 @@ class _MealsScreenState extends ConsumerState<MealsScreen>
                   MambaIcons.plus,
                   color: MambaColors.background,
                 ),
-                label: const Text('Add meal'),
+                label: Text(l10n.addMeal),
               )
             : null,
         body: SafeArea(
@@ -71,13 +73,9 @@ class _MealsScreenState extends ConsumerState<MealsScreen>
           child: Column(
             children: [
               ScreenHeader(
-                title: 'Meals',
+                title: l10n.mealsTab,
                 subtitle: formatDayLabel(now),
-                action: RoundIconButton(
-                  icon: MambaIcons.settings,
-                  label: 'Settings',
-                  onPressed: () => showSettingsSheet(context),
-                ),
+                action: const ProfileButton(),
               ),
               Expanded(
                 child: mealsState.hasValue
@@ -98,19 +96,21 @@ class _MealsScreenState extends ConsumerState<MealsScreen>
   }
 
   Future<void> _openForm([Meal? meal]) async {
+    final l10n = AppLocalizations.of(context)!;
     final result = await showMealFormSheet(context, meal: meal);
     if (!mounted || result == null) return;
     switch (result) {
       case MealFormResult.added:
-        _showMessage('Meal added');
+        _showMessage(l10n.mealAdded);
       case MealFormResult.updated:
-        _showMessage('Meal updated');
+        _showMessage(l10n.mealUpdated);
       case MealFormResult.deleteRequested:
         await _confirmDelete(meal!);
     }
   }
 
   Future<void> _confirmDelete(Meal meal) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDeleteMealSheet(context, meal);
     if (!mounted || confirmed == null) return;
     if (!confirmed) {
@@ -119,9 +119,9 @@ class _MealsScreenState extends ConsumerState<MealsScreen>
     }
     try {
       await ref.read(mealsControllerProvider.notifier).delete(meal);
-      if (mounted) _showMessage('Meal deleted');
+      if (mounted) _showMessage(l10n.mealDeleted);
     } catch (_) {
-      if (mounted) _showMessage('Could not delete the meal. Try again.');
+      if (mounted) _showMessage(l10n.mealDeleteError);
     }
   }
 
@@ -164,12 +164,11 @@ class _Summary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final textTheme = Theme.of(context).textTheme;
-    final count = meals.length;
     final meta = meals.isEmpty
-        ? 'Nothing logged yet'
-        : '$count ${count == 1 ? 'meal' : 'meals'} · '
-              'last at ${formatClockTime(meals.last.eatenAt)}';
+        ? l10n.nothingLoggedYet
+        : l10n.mealsMeta(meals.length, formatClockTime(meals.last.eatenAt));
 
     return DecoratedBox(
       decoration: const BoxDecoration(
@@ -181,7 +180,7 @@ class _Summary extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'TODAY',
+              l10n.mealsToday,
               style: textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1,
@@ -193,7 +192,7 @@ class _Summary extends StatelessWidget {
                 children: [
                   TextSpan(text: formatThousands(totalCalories(meals))),
                   TextSpan(
-                    text: ' kcal',
+                    text: ' ${l10n.kcal}',
                     style: textTheme.bodyMedium?.copyWith(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
@@ -227,6 +226,7 @@ class _MealRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     const tabular = [FontFeature.tabularFigures()];
 
     return InkWell(
@@ -268,9 +268,9 @@ class _MealRow extends StatelessWidget {
               TextSpan(
                 children: [
                   TextSpan(text: formatThousands(meal.calories)),
-                  const TextSpan(
-                    text: ' kcal',
-                    style: TextStyle(
+                  TextSpan(
+                    text: ' ${l10n.kcal}',
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w400,
                       color: MambaColors.textSecondary,
@@ -289,7 +289,7 @@ class _MealRow extends StatelessWidget {
             const SizedBox(width: 12),
             RoundIconButton(
               icon: MambaIcons.pencil,
-              label: 'Edit ${meal.name}',
+              label: l10n.editMealNamed(meal.name),
               onPressed: onTap,
             ),
           ],
@@ -304,7 +304,9 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final textTheme = Theme.of(context).textTheme;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
       child: Column(
@@ -328,11 +330,10 @@ class _EmptyState extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          Text('No meals yet', style: textTheme.titleLarge),
+          Text(l10n.noMealsYet, style: textTheme.titleLarge),
           const SizedBox(height: 8),
           Text(
-            'Log what you eat during your eating window.\n'
-            'The time is recorded automatically.',
+            l10n.noMealsBody,
             textAlign: TextAlign.center,
             style: textTheme.bodyMedium?.copyWith(
               color: MambaColors.textSecondary,
@@ -351,13 +352,15 @@ class _ErrorContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('We could not load your meals.'),
+          Text(l10n.couldNotLoadMeals),
           const SizedBox(height: 12),
-          TextButton(onPressed: onRetry, child: const Text('Try again')),
+          TextButton(onPressed: onRetry, child: Text(l10n.tryAgain)),
         ],
       ),
     );

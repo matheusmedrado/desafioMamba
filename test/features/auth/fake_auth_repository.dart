@@ -33,14 +33,14 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<void> signIn({required String email, required String password}) async {
     if (_passwords[email] != password) throw AuthFailure.invalidCredentials;
-    _setCurrent(email);
+    _setCurrent(AuthUser(id: 'uid-$email', email: email));
   }
 
   @override
   Future<void> signUp({required String email, required String password}) async {
     if (_passwords.containsKey(email)) throw AuthFailure.emailInUse;
     _passwords[email] = password;
-    _setCurrent(email);
+    _setCurrent(AuthUser(id: 'uid-$email', email: email));
   }
 
   @override
@@ -49,13 +49,26 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> updateName(String name) async {
+    final user = _current;
+    if (user == null) throw AuthFailure.unknown;
+    _setCurrent(
+      AuthUser(
+        id: user.id,
+        email: user.email,
+        name: name.isEmpty ? null : name,
+      ),
+    );
+  }
+
+  @override
   Future<void> signOut() async {
     _current = null;
     _changes.add(null);
   }
 
-  void _setCurrent(String email) {
-    _current = AuthUser(id: 'uid-$email', email: email);
+  void _setCurrent(AuthUser user) {
+    _current = user;
     _changes.add(_current);
   }
 }

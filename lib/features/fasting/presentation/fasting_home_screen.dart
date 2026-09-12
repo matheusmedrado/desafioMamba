@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/brand_header.dart';
+import '../../../app/date_text.dart';
 import '../../../app/home_shell_scope.dart';
 import '../../../app/mamba_icon.dart';
 import '../../../app/theme.dart';
 import '../../../core/clock.dart';
 import '../../../core/formatting.dart';
-import '../../auth/presentation/settings_sheet.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../auth/presentation/profile_button.dart';
 import '../../dashboard/presentation/day_summary_section.dart';
 import '../domain/fasting_protocol.dart';
 import '../domain/fasting_session.dart';
@@ -80,11 +82,7 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: BrandHeader(
-                actionIcon: MambaIcons.settings,
-                actionLabel: 'Settings',
-                onAction: () => showSettingsSheet(context),
-              ),
+              child: const BrandHeader(action: ProfileButton()),
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -92,7 +90,6 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _DayHeading(now: now, compact: active != null),
                     if (fastingState.isLoading && !fastingState.hasValue)
                       const _LoadingContent()
                     else if (fastingState.hasError && !fastingState.hasValue)
@@ -140,7 +137,9 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update the fast. Try again.')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.couldNotUpdateFast),
+        ),
       );
     } finally {
       if (mounted) setState(() => _actionInProgress = false);
@@ -171,36 +170,6 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
     if (action == FastCompleteAction.logMeal && mounted) {
       HomeShellScope.maybeOf(context)?.selectTab(HomeShellScope.mealsTab);
     }
-  }
-}
-
-class _DayHeading extends StatelessWidget {
-  const _DayHeading({required this.now, required this.compact});
-
-  final DateTime now;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: compact ? 12 : 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            formatGreeting(now),
-            style: compact
-                ? MambaTextStyles.screenTitle.copyWith(
-                    fontSize: 20,
-                    letterSpacing: -0.9,
-                  )
-                : MambaTextStyles.screenTitle,
-          ),
-          const SizedBox(height: 5),
-          Text(formatDayLabel(now), style: _secondary.copyWith(fontSize: 12)),
-        ],
-      ),
-    );
   }
 }
 
@@ -237,13 +206,14 @@ class _IdleHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final finish = now.add(protocol.target);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Your next fast',
+          l10n.yourNextFast,
           style: _secondary.copyWith(fontSize: 12, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 3),
@@ -255,25 +225,23 @@ class _IdleHero extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          '${protocol.fastingHours}h fasting / ${protocol.eatingHours}h eating',
+          l10n.fastingSplit(protocol.fastingHours, protocol.eatingHours),
           style: _secondary.copyWith(fontSize: 13),
         ),
         const SizedBox(height: 8),
         Semantics(
-          label:
-              'Not fasting. Planned fasting duration '
-              '${protocol.fastingHours} hours.',
+          label: l10n.notFastingSemantics(protocol.fastingHours),
           child: const ExcludeSemantics(
             child: FastingPath(progress: 0, idle: true),
           ),
         ),
         const SizedBox(height: 8),
         _TimeFacts(
-          start: const _TimeFact(label: 'If you start', value: 'Now'),
+          start: _TimeFact(label: l10n.ifYouStart, value: l10n.now),
           end: _TimeFact(
-            label: 'You finish',
+            label: l10n.youFinish,
             value: formatClockTime(finish),
-            suffix: formatRelativeDay(finish, now).toLowerCase(),
+            suffix: relativeDayText(l10n, finish, now).toLowerCase(),
             alignEnd: true,
           ),
         ),
@@ -293,7 +261,7 @@ class _IdleHero extends StatelessWidget {
             size: 20,
             color: MambaColors.background,
           ),
-          label: Text(busy ? 'Starting...' : 'Start fast'),
+          label: Text(busy ? l10n.starting : l10n.startFast),
         ),
         const SizedBox(height: 2),
         Center(
@@ -307,7 +275,7 @@ class _IdleHero extends StatelessWidget {
               size: 18,
               color: MambaColors.textSecondary,
             ),
-            label: const Text('Change protocol'),
+            label: Text(l10n.changeProtocol),
           ),
         ),
       ],
@@ -334,6 +302,7 @@ class _ActiveHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final elapsed = session.elapsedAt(now);
     final remaining = session.remainingAt(now);
     final reached = session.goalReachedAt(now);
@@ -342,10 +311,10 @@ class _ActiveHero extends StatelessWidget {
         .clamp(0.0, 1.0);
     final endsAt = session.targetEndAt;
     final state = paused
-        ? 'Paused'
+        ? l10n.paused
         : reached
-        ? 'Goal reached'
-        : 'Fasting now';
+        ? l10n.goalReached
+        : l10n.fastingNow;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -382,9 +351,9 @@ class _ActiveHero extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        Text('Time elapsed', style: _secondary.copyWith(fontSize: 11)),
+        Text(l10n.timeElapsed, style: _secondary.copyWith(fontSize: 11)),
         Semantics(
-          label: 'Elapsed ${formatHoursMinutes(elapsed)}',
+          label: l10n.elapsedSemantics(formatHoursMinutes(elapsed)),
           excludeSemantics: true,
           child: _FitWidth(
             child: Row(
@@ -412,7 +381,7 @@ class _ActiveHero extends StatelessWidget {
         const SizedBox(height: 4),
         if (reached)
           Text(
-            'You can end your fast whenever you’re ready.',
+            l10n.endWheneverReady,
             style: _secondary.copyWith(
               fontSize: 13,
               fontWeight: FontWeight.w500,
@@ -424,7 +393,7 @@ class _ActiveHero extends StatelessWidget {
               children: [
                 TextSpan(text: formatHoursMinutes(remaining)),
                 TextSpan(
-                  text: ' remaining',
+                  text: l10n.remainingSuffix,
                   style: _secondary.copyWith(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -442,15 +411,19 @@ class _ActiveHero extends StatelessWidget {
           ),
         const SizedBox(height: 8),
         Semantics(
-          label:
-              '${formatHoursMinutes(elapsed)} elapsed, '
-              '${formatHoursMinutes(remaining)} remaining.',
+          label: l10n.progressSemantics(
+            formatHoursMinutes(elapsed),
+            formatHoursMinutes(remaining),
+          ),
           child: ExcludeSemantics(child: FastingPath(progress: progress)),
         ),
         Align(
           alignment: Alignment.centerRight,
           child: Text(
-            '${(progress * 100).round()}% of ${session.target.inHours}h goal',
+            l10n.percentOfGoal(
+              (progress * 100).round(),
+              session.target.inHours,
+            ),
             style: _secondary.copyWith(fontSize: 11),
           ),
         ),
@@ -459,16 +432,18 @@ class _ActiveHero extends StatelessWidget {
         const SizedBox(height: 8),
         _TimeFacts(
           start: _TimeFact(
-            label: 'Started',
+            label: l10n.startedLabel,
             value: formatClockTime(session.startedAt),
-            suffix: formatRelativeDay(session.startedAt, now),
+            suffix: relativeDayText(l10n, session.startedAt, now),
             valueSize: 16,
             valueWeight: FontWeight.w600,
           ),
           end: _TimeFact(
-            label: 'Ends',
+            label: l10n.endsLabel,
             value: endsAt == null ? '—' : formatClockTime(endsAt),
-            suffix: endsAt == null ? 'paused' : formatRelativeDay(endsAt, now),
+            suffix: endsAt == null
+                ? l10n.pausedLowercase
+                : relativeDayText(l10n, endsAt, now),
             alignEnd: true,
             valueSize: 21,
           ),
@@ -480,11 +455,11 @@ class _ActiveHero extends StatelessWidget {
               child: paused
                   ? FilledButton(
                       onPressed: busy ? null : onResume,
-                      child: const Text('Resume'),
+                      child: Text(l10n.resume),
                     )
                   : ElevatedButton(
                       onPressed: busy ? null : onPause,
-                      child: const Text('Pause'),
+                      child: Text(l10n.pause),
                     ),
             ),
             const SizedBox(width: 12),
@@ -492,18 +467,18 @@ class _ActiveHero extends StatelessWidget {
               child: reached && !paused
                   ? FilledButton(
                       onPressed: busy ? null : onEnd,
-                      child: const Text('End fast'),
+                      child: Text(l10n.endFast),
                     )
                   : ElevatedButton(
                       onPressed: busy ? null : onEnd,
-                      child: const Text('End fast'),
+                      child: Text(l10n.endFast),
                     ),
             ),
           ],
         ),
         const SizedBox(height: 8),
         Text(
-          'Your session saves whenever you finish.',
+          l10n.sessionSavesHint,
           textAlign: TextAlign.center,
           style: _secondary.copyWith(fontSize: 12),
         ),
@@ -609,12 +584,14 @@ class _ErrorContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Center(
       child: Column(
         children: [
-          const Text('We could not load your fast.'),
+          Text(l10n.couldNotLoadFast),
           const SizedBox(height: 12),
-          TextButton(onPressed: onRetry, child: const Text('Try again')),
+          TextButton(onPressed: onRetry, child: Text(l10n.tryAgain)),
         ],
       ),
     );

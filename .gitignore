@@ -56,3 +56,8 @@ app.*.map.json
 # Operating system files
 Thumbs.db
 Desktop.ini
+
+# Release signing (kept out of the repository)
+android/key.properties
+*.jks
+*.keystore

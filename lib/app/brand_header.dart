@@ -3,18 +3,11 @@ import 'package:flutter/material.dart';
 import 'mamba_icon.dart';
 import 'theme.dart';
 
-/// The wordmark lockup with a round action button.
+/// The wordmark lockup with a round action on the right.
 class BrandHeader extends StatelessWidget {
-  const BrandHeader({
-    super.key,
-    required this.actionIcon,
-    required this.actionLabel,
-    required this.onAction,
-  });
+  const BrandHeader({super.key, required this.action});
 
-  final MambaIcons actionIcon;
-  final String actionLabel;
-  final VoidCallback onAction;
+  final Widget action;
 
   @override
   Widget build(BuildContext context) {
@@ -41,11 +34,7 @@ class BrandHeader extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          RoundIconButton(
-            icon: actionIcon,
-            label: actionLabel,
-            onPressed: onAction,
-          ),
+          action,
         ],
       ),
     );

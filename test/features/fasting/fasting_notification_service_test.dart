@@ -49,6 +49,14 @@ void main() {
     );
   }
 
+  List<MethodCall> showCalls() =>
+      log.where((call) => call.method == 'show').toList();
+
+  Map<String, Object?> androidDetails(MethodCall call) {
+    final arguments = Map<String, Object?>.from(call.arguments as Map);
+    return Map<String, Object?>.from(arguments['platformSpecifics']! as Map);
+  }
+
   test(
     'shows start and schedules the fasting goal in the device timezone',
     () async {
@@ -62,17 +70,18 @@ void main() {
         'requestNotificationsPermission',
         'show',
         'cancel',
+        'show',
         'zonedSchedule',
       ]);
 
-      // Android looks the icon up as a drawable unless the type is explicit.
+      // A notification icon must be a white silhouette on transparency.
       final initialize = log.first;
       expect(
         (initialize.arguments as Map)['defaultIcon'],
-        '@mipmap/ic_launcher',
+        '@drawable/ic_notification',
       );
 
-      final start = log.singleWhere((call) => call.method == 'show');
+      final start = showCalls().first;
       expect((start.arguments as Map)['id'], 1001);
       expect((start.arguments as Map)['title'], 'Fast started');
 
@@ -93,6 +102,42 @@ void main() {
       expect(platformSpecifics['scheduleMode'], 'inexactAllowWhileIdle');
     },
   );
+
+  test('the running fast keeps a notification that counts the time', () async {
+    final service = LocalFastingNotificationService();
+    final paused = session().pauseAt(startedAt.add(const Duration(hours: 2)));
+    final resumed = paused.resumeAt(startedAt.add(const Duration(hours: 3)));
+
+    await service.sync(resumed, startedAt.add(const Duration(hours: 4)));
+
+    final progress = showCalls().single;
+    final arguments = Map<String, Object?>.from(progress.arguments as Map);
+    expect(arguments['id'], 1003);
+    expect(arguments['title'], 'Fasting now');
+
+    final android = androidDetails(progress);
+    expect(android['ongoing'], isTrue);
+    expect(android['usesChronometer'], isTrue);
+    // Android counts from this moment, so the pause is not counted as fasting.
+    expect(
+      android['when'],
+      startedAt.add(const Duration(hours: 1)).millisecondsSinceEpoch,
+    );
+  });
+
+  test('a paused fast shows the frozen time without a chronometer', () async {
+    final service = LocalFastingNotificationService();
+    final paused = session().pauseAt(startedAt.add(const Duration(hours: 2)));
+
+    await service.sync(paused, startedAt.add(const Duration(hours: 8)));
+
+    expect(log.map((call) => call.method), ['initialize', 'cancel', 'show']);
+    final progress = showCalls().single;
+    final arguments = Map<String, Object?>.from(progress.arguments as Map);
+    expect(arguments['title'], 'Fast paused');
+    expect(arguments['body'], '2h 00m fasted · 16h goal');
+    expect(androidDetails(progress)['usesChronometer'], isFalse);
+  });
 
   test('retries setup after a failed initialization', () async {
     var failInitialize = true;
@@ -118,23 +163,28 @@ void main() {
       'initialize',
       'initialize',
       'cancel',
+      'cancel',
     ]);
   });
 
-  test('cancels without scheduling when the target is reached', () async {
-    final service = LocalFastingNotificationService();
+  test(
+    'keeps the fast visible without scheduling once the goal is reached',
+    () async {
+      final service = LocalFastingNotificationService();
 
-    await service.sync(session(), startedAt.add(const Duration(hours: 16)));
+      await service.sync(session(), startedAt.add(const Duration(hours: 16)));
 
-    expect(log.map((call) => call.method), ['initialize', 'cancel']);
-  });
+      expect(log.map((call) => call.method), ['initialize', 'cancel', 'show']);
+      expect((showCalls().single.arguments as Map)['title'], 'Goal reached');
+    },
+  );
 
-  test('cancels without scheduling when there is no active session', () async {
+  test('cancels both notifications when there is no active session', () async {
     final service = LocalFastingNotificationService();
 
     await service.sync(null, startedAt);
 
-    expect(log.map((call) => call.method), ['initialize', 'cancel']);
+    expect(log.map((call) => call.method), ['initialize', 'cancel', 'cancel']);
   });
 
   test('reschedules the goal after a pause and resume', () async {
@@ -146,7 +196,7 @@ void main() {
     final resumed = paused.resumeAt(startedAt.add(const Duration(hours: 7)));
     await service.sync(resumed, startedAt.add(const Duration(hours: 7)));
 
-    expect(log.map((call) => call.method), ['cancel', 'zonedSchedule']);
+    expect(log.map((call) => call.method), ['cancel', 'show', 'zonedSchedule']);
     final scheduled = log.singleWhere((call) => call.method == 'zonedSchedule');
     final arguments = Map<String, Object?>.from(scheduled.arguments as Map);
     expect(arguments['id'], 1002);
@@ -156,16 +206,25 @@ void main() {
     );
   });
 
-  test('cancels without scheduling while paused or ended', () async {
+  test('an ended fast leaves no notification behind', () async {
     final service = LocalFastingNotificationService();
-    final paused = session().pauseAt(startedAt.add(const Duration(hours: 2)));
-
-    await service.sync(paused, startedAt.add(const Duration(hours: 8)));
-    expect(log.map((call) => call.method), ['initialize', 'cancel']);
-
-    log.clear();
     final ended = session().endAt(startedAt.add(const Duration(hours: 4)));
+
     await service.sync(ended, startedAt.add(const Duration(hours: 4)));
-    expect(log.map((call) => call.method), ['cancel']);
+
+    expect(log.map((call) => call.method), ['initialize', 'cancel', 'cancel']);
+  });
+
+  test('logging out removes every fasting notification', () async {
+    final service = LocalFastingNotificationService();
+
+    await service.cancelAll();
+
+    expect(log.map((call) => call.method), [
+      'initialize',
+      'cancel',
+      'cancel',
+      'cancel',
+    ]);
   });
 }

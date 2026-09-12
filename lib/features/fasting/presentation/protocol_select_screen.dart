@@ -4,12 +4,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/mamba_icon.dart';
 import '../../../app/screen_header.dart';
 import '../../../app/theme.dart';
+import '../../../l10n/app_localizations.dart';
 import '../domain/fasting_protocol.dart';
 import 'custom_protocol_screen.dart';
 import 'protocol_controller.dart';
 import 'widgets/fasting_window_bar.dart';
 
 const _onSelected = Color(0xFFE3D6EF);
+
+/// Tag and description of a preset, which the domain identifies by id.
+(String, String) presetText(AppLocalizations l10n, FastingProtocol preset) {
+  return switch (preset.id) {
+    '12:12' => (l10n.protocolTagGentle, l10n.protocolDescriptionGentle),
+    '18:6' => (l10n.protocolTagAdvanced, l10n.protocolDescriptionAdvanced),
+    _ => (l10n.protocolTagPopular, l10n.protocolDescriptionPopular),
+  };
+}
 
 /// Pick one of the presets or define a custom protocol.
 ///
@@ -60,8 +70,8 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not save the protocol. Try again.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.protocolSaveError),
         ),
       );
     }
@@ -69,6 +79,7 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final settings =
         ref.watch(protocolControllerProvider).value ??
         ProtocolSettings.defaults;
@@ -79,15 +90,14 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const ScreenHeader(title: 'Find your rhythm.', showBack: true),
+            ScreenHeader(title: l10n.findYourRhythm, showBack: true),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
                 children: [
-                  const Text(
-                    'A fasting window that fits your day. Change it whenever '
-                    'you need.',
-                    style: TextStyle(
+                  Text(
+                    l10n.protocolLead,
+                    style: const TextStyle(
                       fontFamily: 'Manrope',
                       fontSize: 14,
                       height: 1.4,
@@ -104,14 +114,14 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
                     const SizedBox(height: 12),
                   ],
                   _CustomOption(
-                    name: custom?.name ?? 'Custom',
+                    name: custom?.name ?? l10n.protocolCustomName,
                     description: custom == null
-                        ? 'Set your own fasting and eating hours.'
-                        : 'Your own hours, tap to edit',
+                        ? l10n.protocolCustomEmptyDescription
+                        : l10n.protocolCustomDescription,
                     selected: selected.isCustom,
                     semanticsLabel: custom == null
-                        ? 'Custom protocol, set your own hours'
-                        : 'Custom protocol ${custom.name}, tap to edit',
+                        ? l10n.protocolSemanticsCustomEmpty
+                        : l10n.protocolSemanticsCustom(custom.name),
                     onTap: () => _openCustom(custom),
                   ),
                 ],
@@ -125,7 +135,7 @@ class _ProtocolSelectScreenState extends ConsumerState<ProtocolSelectScreen> {
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
                 child: FilledButton(
                   onPressed: _saving ? null : () => _save(selected),
-                  child: Text(_saving ? 'Saving...' : 'Save protocol'),
+                  child: Text(_saving ? l10n.saving : l10n.saveProtocol),
                 ),
               ),
             ),
@@ -149,13 +159,15 @@ class _ProtocolOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final (tag, description) = presetText(l10n, protocol);
     final secondary = selected ? _onSelected : MambaColors.textSecondary;
 
     return Semantics(
       inMutuallyExclusiveGroup: true,
       checked: selected,
       button: true,
-      label: '${protocol.name}, ${protocol.tag}',
+      label: l10n.protocolSemanticsPreset(protocol.name, tag),
       child: Material(
         color: selected ? MambaColors.purpleDeep : MambaColors.surface,
         borderRadius: BorderRadius.circular(MambaRadius.medium),
@@ -188,7 +200,7 @@ class _ProtocolOption extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        protocol.tag,
+                        tag,
                         style: TextStyle(
                           fontFamily: 'Manrope',
                           fontSize: 12,
@@ -202,7 +214,7 @@ class _ProtocolOption extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  protocol.description,
+                  description,
                   style: TextStyle(
                     fontFamily: 'Manrope',
                     fontSize: 13,
@@ -213,6 +225,8 @@ class _ProtocolOption extends StatelessWidget {
                 const SizedBox(height: 12),
                 FastingWindowBar(
                   fastingHours: protocol.fastingHours,
+                  fastingLabel: l10n.fastHoursShort(protocol.fastingHours),
+                  eatingLabel: l10n.eatingHoursLabel(protocol.eatingHours),
                   fillColor: selected
                       ? MambaColors.textPrimary
                       : MambaColors.purple,

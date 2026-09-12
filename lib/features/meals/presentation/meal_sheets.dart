@@ -6,6 +6,7 @@ import '../../../app/mamba_icon.dart';
 import '../../../app/theme.dart';
 import '../../../core/clock.dart';
 import '../../../core/formatting.dart';
+import '../../../l10n/app_localizations.dart';
 import '../domain/meal.dart';
 import '../domain/meal_validator.dart';
 import 'meals_controller.dart';
@@ -31,6 +32,7 @@ Future<bool?> showDeleteMealSheet(BuildContext context, Meal meal) {
     context: context,
     showDragHandle: true,
     builder: (context) {
+      final l10n = AppLocalizations.of(context)!;
       final textTheme = Theme.of(context).textTheme;
       return SafeArea(
         child: Padding(
@@ -39,11 +41,10 @@ Future<bool?> showDeleteMealSheet(BuildContext context, Meal meal) {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Delete this meal?', style: textTheme.titleLarge),
+              Text(l10n.deleteThisMeal, style: textTheme.titleLarge),
               const SizedBox(height: 6),
               Text(
-                '“${meal.name}” will be removed from today. '
-                'This can’t be undone.',
+                l10n.deleteMealBody(meal.name),
                 style: textTheme.bodyMedium?.copyWith(
                   color: MambaColors.textSecondary,
                 ),
@@ -54,7 +55,7 @@ Future<bool?> showDeleteMealSheet(BuildContext context, Meal meal) {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
+                      child: Text(l10n.cancel),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -65,7 +66,7 @@ Future<bool?> showDeleteMealSheet(BuildContext context, Meal meal) {
                         backgroundColor: MambaColors.danger,
                         foregroundColor: MambaColors.textPrimary,
                       ),
-                      child: const Text('Delete'),
+                      child: Text(l10n.delete),
                     ),
                   ),
                 ],
@@ -99,7 +100,7 @@ class _MealFormSheetState extends ConsumerState<MealFormSheet> {
 
   var _autovalidate = AutovalidateMode.disabled;
   var _saving = false;
-  String? _error;
+  var _failed = false;
 
   bool get _editing => widget.meal != null;
 
@@ -118,7 +119,7 @@ class _MealFormSheetState extends ConsumerState<MealFormSheet> {
     }
     setState(() {
       _saving = true;
-      _error = null;
+      _failed = false;
     });
 
     final controller = ref.read(mealsControllerProvider.notifier);
@@ -138,13 +139,31 @@ class _MealFormSheetState extends ConsumerState<MealFormSheet> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = 'Could not save the meal. Try again.';
+        _failed = true;
       });
     }
   }
 
+  String? _nameError(AppLocalizations l10n, String? value) {
+    return switch (MealValidator.name(value)) {
+      null => null,
+      MealFieldError.nameRequired => l10n.errorMealName,
+      MealFieldError.nameTooLong => l10n.errorMealNameTooLong(
+        MealValidator.maxNameLength,
+      ),
+      MealFieldError.calories => null,
+    };
+  }
+
+  String? _caloriesError(AppLocalizations l10n, String? value) {
+    return MealValidator.calories(value) == null
+        ? null
+        : l10n.errorMealCalories(formatThousands(MealValidator.maxCalories));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final textTheme = Theme.of(context).textTheme;
 
     return Padding(
@@ -161,7 +180,7 @@ class _MealFormSheetState extends ConsumerState<MealFormSheet> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  _editing ? 'Edit meal' : 'Add meal',
+                  _editing ? l10n.editMealTitle : l10n.addMeal,
                   style: textTheme.titleLarge,
                 ),
                 const SizedBox(height: 6),
@@ -174,30 +193,18 @@ class _MealFormSheetState extends ConsumerState<MealFormSheet> {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            const TextSpan(text: 'Time '),
-                            TextSpan(
-                              text: formatClockTime(_time),
-                              style: const TextStyle(
-                                color: MambaColors.textPrimary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const TextSpan(text: ' · recorded automatically'),
-                          ],
-                        ),
+                      child: Text(
+                        l10n.mealTimeRecorded(formatClockTime(_time)),
                         style: textTheme.bodySmall,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
-                const _FieldLabel('Meal name'),
+                _FieldLabel(l10n.mealNameLabel),
                 TextFormField(
                   controller: _nameController,
-                  validator: MealValidator.name,
+                  validator: (value) => _nameError(l10n, value),
                   textCapitalization: TextCapitalization.sentences,
                   textInputAction: TextInputAction.next,
                   inputFormatters: [
@@ -205,15 +212,13 @@ class _MealFormSheetState extends ConsumerState<MealFormSheet> {
                       MealValidator.maxNameLength,
                     ),
                   ],
-                  decoration: const InputDecoration(
-                    hintText: 'e.g. Grilled chicken salad',
-                  ),
+                  decoration: InputDecoration(hintText: l10n.mealNameHint),
                 ),
                 const SizedBox(height: 16),
-                const _FieldLabel('Calories'),
+                _FieldLabel(l10n.caloriesLabel),
                 TextFormField(
                   controller: _caloriesController,
-                  validator: MealValidator.calories,
+                  validator: (value) => _caloriesError(l10n, value),
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.done,
                   inputFormatters: [
@@ -221,16 +226,16 @@ class _MealFormSheetState extends ConsumerState<MealFormSheet> {
                     LengthLimitingTextInputFormatter(4),
                   ],
                   onFieldSubmitted: (_) => _save(),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: '0',
-                    suffixText: 'kcal',
-                    helperText: 'Whole numbers, up to 5,000',
+                    suffixText: l10n.kcal,
+                    helperText: l10n.caloriesHelper,
                   ),
                 ),
-                if (_error != null) ...[
+                if (_failed) ...[
                   const SizedBox(height: 12),
                   Text(
-                    _error!,
+                    l10n.mealSaveError,
                     style: textTheme.bodySmall?.copyWith(
                       color: MambaColors.danger,
                     ),
@@ -241,10 +246,10 @@ class _MealFormSheetState extends ConsumerState<MealFormSheet> {
                   onPressed: _saving ? null : _save,
                   child: Text(
                     _saving
-                        ? 'Saving...'
+                        ? l10n.saving
                         : _editing
-                        ? 'Save changes'
-                        : 'Save meal',
+                        ? l10n.saveChanges
+                        : l10n.saveMeal,
                   ),
                 ),
                 if (_editing) ...[
@@ -264,7 +269,7 @@ class _MealFormSheetState extends ConsumerState<MealFormSheet> {
                       size: 20,
                       color: MambaColors.danger,
                     ),
-                    label: const Text('Delete meal'),
+                    label: Text(l10n.deleteMeal),
                   ),
                 ],
               ],

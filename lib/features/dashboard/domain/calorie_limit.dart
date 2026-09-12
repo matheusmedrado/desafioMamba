@@ -6,12 +6,9 @@ abstract final class CalorieLimit {
 
   static bool isValid(int value) => value >= min && value <= max;
 
-  /// Form rule. Returns an error message or null.
-  static String? validate(String? value) {
+  /// Form rule for typed input. The screen writes the error message.
+  static bool isValidText(String? value) {
     final limit = int.tryParse(value?.trim() ?? '');
-    if (limit == null || !isValid(limit)) {
-      return 'Enter a whole number between 500 and 5,000.';
-    }
-    return null;
+    return limit != null && isValid(limit);
   }
 }

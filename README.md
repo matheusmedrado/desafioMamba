@@ -6,9 +6,30 @@ Flutter app for the Mamba Fast Tracker technical challenge: intermittent fasting
 
 The repository currently has email and password accounts with Firebase Authentication, fasting protocol selection, a timestamp-based fasting timer with local notifications, meal tracking, a daily summary with goal status, a history of previous days, and a weekly fasting chart. Product features are implemented issue by issue.
 
+## Download
+
+- Repository: <https://github.com/matheusmedrado/desafioMamba>
+- Signed release APK: <https://github.com/matheusmedrado/desafioMamba/releases/latest>
+
+To run the project, install that APK on an Android phone or emulator (Android 7.0 or newer) and create an account. There is no browser version: the app stores its data on the device with SQLite and sends local notifications, which a web build cannot do.
+
 ## Screenshots
 
-TODO: Add screenshots once the application UI exists.
+| Today, no fast | Today, fasting | Fast complete |
+| --- | --- | --- |
+| ![Today with no fast](docs/screenshots/today-idle.png) | ![Today with a running fast](docs/screenshots/today-active.png) | ![Fast complete](docs/screenshots/fast-complete.png) |
+
+| Meals | History | Week |
+| --- | --- | --- |
+| ![Meals](docs/screenshots/meals.png) | ![History](docs/screenshots/history.png) | ![Week](docs/screenshots/week.png) |
+
+| Protocols | End fast | Notification |
+| --- | --- | --- |
+| ![Protocol selection](docs/screenshots/protocol.png) | ![End fast sheet](docs/screenshots/end-fast-sheet.png) | ![Ongoing notification](docs/screenshots/notification.png) |
+
+| Settings | Login | Login in Portuguese |
+| --- | --- | --- |
+| ![Settings](docs/screenshots/settings.png) | ![Login](docs/screenshots/login.png) | ![Login in Portuguese](docs/screenshots/login-portuguese.png) |
 
 ## Features
 
@@ -18,6 +39,9 @@ Done:
 - Fasting protocols: 12:12, 16:8, 18:6, and a custom protocol with 8 to 23 fasting hours. The choice is stored locally.
 - Fasting timer with start, pause, resume, and manual end controls. Elapsed and remaining time are restored from persisted timestamps after backgrounding or restarting the app. Today shows the fast on a winding fasting route. Ending a fast asks for confirmation, warns when the goal is not reached yet, and then shows a Fast complete summary with the time fasted and the eating window.
 - Local notifications when a fast starts and when its planned fasting goal is reached. The scheduled notification is restored, rescheduled, or canceled with the active session.
+- An ongoing notification counts the fasting time while the app is closed, and shows the frozen time while the fast is paused.
+- English and Portuguese. The app follows the language of the device, including dates and numbers.
+- Settings with a profile photo kept on the device, the account name, a password reset link, the language, the app version, and log out. The photo replaces the settings button in the header.
 - Meal tracking: add, edit, and delete today's meals with a name and calories. The meal time is recorded automatically, and meals are stored in SQLite so they remain after restarting the app.
 - Daily summary on Today: calories against a daily calorie limit, fasting time for the day, and whether the day is within goal. Ended fasts are stored in SQLite, so the totals remain after restarting the app.
 - History: previous days with records, newest first, grouped into this week, last week, and earlier. Each day opens a read-only summary with its fasts, meals, and goal status.
@@ -35,6 +59,9 @@ UI polish and release preparation are tracked in [GitHub Issues](https://github.
 - `flutter_local_notifications` for Android start and fasting-goal notifications
 - `timezone` and `flutter_timezone` for scheduling in the device's local timezone
 - `flutter_svg` to draw the app's stroke icons from SVG paths
+- `flutter_localizations` and `intl` for English and Portuguese, and for localized dates and numbers
+- `flutter_launcher_icons` to generate the Android launcher icons from one image
+- `image_picker`, `path_provider`, and `package_info_plus` for the profile photo and the app version
 - Manrope (SIL Open Font License) bundled as the app font
 - `flutter_test` and `flutter_lints`
 - `sqflite_common_ffi` so repository tests run against real SQLite on the development machine and in CI
@@ -57,6 +84,7 @@ Rules the code follows:
 - Each durable piece of data has one repository that owns it.
 - Repositories are built for the signed-in account. Rows carry a user id, single records use a key per user, and every query filters by the current user, so two accounts on one device never see each other's data.
 - The current time comes from an injected `Clock`, never from `DateTime.now()` inside business logic.
+- Screen text comes from ARB files. Domain rules return codes, such as `AuthFailure.invalidCredentials` or `MealFieldError.nameTooLong`, and the screen turns them into a message, so no layer below the UI holds English text.
 - Navigation uses the plain `Navigator` with a bottom navigation shell. No routing package. A tab is built the first time it is opened and then kept in an `IndexedStack`, so switching tabs does not reload it.
 - The fasting screen observes app lifecycle changes. It stops the display ticker when hidden and reloads the persisted session when the app resumes.
 - Notifications are a projection of the persisted fasting session. A fixed goal-notification ID is canceled before a new target is scheduled, so pause, resume, end, and restore cannot leave an old target behind.
@@ -76,17 +104,21 @@ Rules the code follows:
 android/                Android host and Gradle configuration
 assets/
   fonts/                Manrope and its license
+  icon/                 Launcher and notification icon sources
   images/               Wordmark
+docs/
+  screenshots/          Screens captured from the release build
 lib/
   main.dart             Composition root: Firebase setup, ProviderScope, and app
   firebase_options.dart Firebase configuration generated by FlutterFire
   app/                  MaterialApp, theme, auth gate, tab shell, brand and screen headers, and icons
+  l10n/                 English and Portuguese texts, and the generated localizations
   core/                 Clock, SQLite database, preference keys per user, local day boundaries, and formatting helpers
   features/
     auth/
       domain/           AuthUser, AuthFailure messages, login form rules
       data/             AuthRepository interface and its Firebase implementation
-      presentation/     AuthController, LoginScreen with account creation, password reset sheet, settings sheet
+      presentation/     AuthController, LoginScreen with account creation, password reset sheet, settings screen, profile button
     fasting/
       domain/           FastingProtocol, ProtocolSettings, FastingSession
       data/             ProtocolRepository, FastingRepository, CompletedFastRepository, and notification service
@@ -163,7 +195,25 @@ Output: `build/docker/app-release.apk`.
 
 The first build downloads the toolchain and takes several minutes. Later builds reuse the cached toolchain layers and a Gradle cache mount, so only the app compiles again. Docker is only a build environment here. Running the app still needs an Android device or emulator.
 
-The template currently signs release builds with the debug key. This is suitable for checking the scaffold, but final release signing and delivery are still TODO.
+### Signing
+
+Release builds are signed with a keystore that stays outside the repository. Gradle reads `android/key.properties`, which is git-ignored:
+
+```properties
+storePassword=<password>
+keyPassword=<password>
+keyAlias=mamba
+storeFile=/absolute/path/to/mamba-release.jks
+```
+
+Create your own keystore with:
+
+```bash
+keytool -genkeypair -v -keystore ~/.android/mamba-release.jks -storetype JKS \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias mamba
+```
+
+Without `key.properties`, as on CI and in the Docker build, the release build falls back to the debug key so it still compiles. An APK signed with the release key cannot be installed over one signed with the debug key, so uninstall the old build first.
 
 ## Testing
 
@@ -184,7 +234,9 @@ GitHub Actions runs these checks and `flutter build apk --release` on pull reque
 | --- | --- |
 | Fasting session | Elapsed and remaining time while running, paused, and ended. A pause freezes elapsed time, several pauses add up, and resume moves the target end. Ending before or after the target, reaching the target without ending, and a device clock set before the start. Invalid transitions and inconsistent stored data are rejected. JSON round trips for every status. |
 | Restore | A new provider container stands in for a killed process. A running fast restores with the correct elapsed time, a paused fast stays frozen, a fast whose target passed while the app was closed stays running with the goal reached, and an ended fast that was not copied to SQLite is copied once. A storage failure on restore shows an error, and a malformed stored session is removed. |
-| Notifications | The goal notification is scheduled, rescheduled, or canceled from the saved session after each transition and on restore. Notification failures do not block the timer. |
+| Notifications | The goal notification is scheduled, rescheduled, or canceled from the saved session after each transition and on restore. The ongoing notification counts from the start plus the paused time, freezes while paused, and disappears when the fast ends. Notification failures do not block the timer. |
+| Language | A device in Portuguese sees the app in Portuguese, and any other language falls back to English. |
+| Profile | Settings shows the account, the language, and the version. Saving a name updates the profile. The chosen photo is copied into the app's files and survives the original being deleted, each account keeps its own, and removing it deletes the file. |
 | Daily totals | Calories count only meals on the local day, and the limit itself is within goal. Fasting time counts on the day a fast ends, without paused time, and each fast is compared with its own target. The running fast adds to today. Totals match the stored data after a restart. |
 | History and week | Grouping by local day, today left out, this week and last week groups, the weekly summary, and past statuses after a limit change. |
 | Accounts | Creating an account, logging in, a wrong password, matching passwords on sign up, password reset, logging out, and the session after a restart, using an in-memory auth repository. Firebase error codes map to messages, and an unknown email and a wrong password show the same one. Logging out cancels the fasting notifications. |
@@ -310,6 +362,36 @@ Reason: behavior came first, so the polish could build on screens and states tha
 
 Trade-off: one more package, and the Today screen has more custom layout to maintain. The timer logic did not change: the route and the numbers still come from the persisted session and the clock.
 
+### Showing the fast outside the app
+
+Problem: the timer is the core of the app, but nothing proved it was running once the app was closed. The only sign was the goal notification, hours later.
+
+Decision: while a fast is running, an ongoing notification shows the elapsed time with Android's chronometer, counting from the start plus the paused time. Pausing replaces it with the frozen time, and ending or logging out removes it. It uses its own low-importance channel so it never makes a sound, and it is rebuilt from the saved session by the same synchronization as the goal notification.
+
+Reason: Android updates the chronometer itself, so the time stays correct with no background service, no wake locks, and no battery cost. The session stays the only source of truth.
+
+Trade-off: it needs the notification permission, and Android 14 and newer let the user dismiss ongoing notifications. The timer does not depend on it either way.
+
+### App icon and release signing
+
+Problem: the app shipped with the default Flutter icon and a debug signature, which is not a build ready for distribution.
+
+Decision: the icon is the fasting route from the app, drawn as SVG and rendered into the launcher icon, the adaptive icon, and a white notification icon. `flutter_launcher_icons` generates the Android sizes. Release builds are signed with a keystore outside the repository, read from `android/key.properties`, and fall back to the debug key when that file is missing.
+
+Reason: reusing the route ties the icon to what the app looks like, and keeping the keystore out of the repository means the signing key is not published with the code while CI can still build.
+
+Trade-off: whoever clones the project gets debug-signed builds until they create a keystore. The release build also strips resources that only Dart names, so the notification icon is kept explicitly in `res/raw/keep.xml`.
+
+### Two languages
+
+Problem: the interface was English only, and the app is for a Brazilian product.
+
+Decision: English and Portuguese with `flutter_localizations` and ARB files. The app follows the language of the device and falls back to English. `Intl.defaultLocale` is set from the resolved locale, so dates and numbers follow the same language. Domain rules return codes instead of text, and the screens turn them into messages. Notifications, which have no screen, read the device language directly.
+
+Reason: ARB with the Flutter tooling needs no extra package, and keeping text out of the domain means adding a language does not touch business rules.
+
+Trade-off: every screen depends on the localizations, and a third language means translating one more file by hand. There is no language switch inside the app.
+
 ### Other choices
 
 - The protocol choice is one small record: the selected protocol id plus the custom fasting hours. Custom hours are kept when a preset is selected again, so the custom card stays editable. Presets are constants in code, since they never change and there is nothing to store for them.
@@ -323,7 +405,7 @@ Trade-off: one more package, and the Today screen has more custom layout to main
 
 - Local persistence only. Reinstalling the app clears all data. This matches the challenge scope, which does not ask for cloud sync.
 - The theme is dark only. A light theme is possible later since the color tokens exist for it.
-- The release build is still signed with the debug key. Final signing is handled in the release issue.
+- The release APK is signed with a key that is not in the repository, so anyone who clones the project builds with the debug key unless they create their own keystore.
 
 ## Known Limitations
 
@@ -337,12 +419,29 @@ Trade-off: one more package, and the Today screen has more custom layout to main
 - If the app stays in the foreground past midnight, History and the daily summary update the next time the app returns to the foreground.
 - The weekly chart covers only the last seven complete days. Its goal line follows the current protocol.
 - The Fast complete screen is shown only right after ending a fast. Reopening the app later goes back to Today, and the fast is reviewed in History.
-- Final signing, release testing, and delivery links are pending.
+- The ongoing notification needs the notification permission. If it is denied, the timer still works, but nothing shows outside the app.
+- Force-stopping the app from Android settings removes the ongoing notification until the app is opened again. Swiping the app away keeps it.
+- The app follows the language of the device. There is no language switch inside the app, and only English and Portuguese are translated.
+- The profile photo stays on the device. Reinstalling the app, or logging in on another phone, does not bring it back. Only the name travels with the account.
+- The app was checked on an Android 16 emulator (Pixel 7 profile), not on physical phones.
 
 ## What I Would Improve With More Time
 
-TODO: Record specific improvements after the MVP is implemented and evaluated.
+- Edit past days. Meals and fasts before today are read-only, so a forgotten meal cannot be added later.
+- Split a fast that crosses midnight between the two days, which needs the start and end of every pause instead of only the total.
+- Keep the calorie limit per day, so changing it today does not rejudge the past.
+- Exact goal notifications, with the permission request and the fallback that Android requires, so "you can eat now" is not delayed by battery saving.
+- Sync between devices. Accounts already exist in Firebase, so the data could follow the account instead of staying on one phone.
+- Integration tests on a real device for the lifecycle cases that are simulated today, and golden tests for the screens.
+- Page History instead of loading every record, and refresh it at midnight while the app is open.
+- Analytics and crash reporting, which the Firebase project already supports.
 
 ## Time Spent
 
-TODO: Record actual setup and implementation time before submission.
+About 23 hours across three days. The hours come from the commit history, so they cover the time between the first and last commit of each day.
+
+| Day | Hours | What was done |
+| --- | --- | --- |
+| Day 1 | ~10h | Project setup, architecture, CI, Docker build, login with a local session, and fasting protocols |
+| Day 2 | ~4h | Fasting timer with persisted timestamps, lifecycle handling, and local notifications |
+| Day 3 | ~9h | Meals, daily summary, History, weekly chart, UI polish, more tests, Firebase accounts, data per account, ongoing notification, icon, signing, and this README |

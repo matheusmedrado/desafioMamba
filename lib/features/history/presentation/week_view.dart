@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/mamba_icon.dart';
 import '../../../app/theme.dart';
 import '../../../core/formatting.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../fasting/presentation/protocol_controller.dart';
 import '../domain/week_summary.dart';
 import 'weekly_fasting_chart.dart';
@@ -20,6 +21,7 @@ class WeekView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final goalHours = ref.watch(selectedProtocolProvider).fastingHours;
     final days = summary.days;
     final average = summary.averageFast;
@@ -29,22 +31,22 @@ class WeekView extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       children: [
-        const Text('Last 7 days', style: MambaTextStyles.screenTitle),
+        Text(l10n.last7Days, style: MambaTextStyles.screenTitle),
         const SizedBox(height: 4),
         Text(
           formatDayRange(days.first.day, days.last.day),
           style: _secondary.copyWith(fontSize: 14),
         ),
         const SizedBox(height: 20),
-        const Wrap(
+        Wrap(
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: 8,
           runSpacing: 8,
           children: [
             Text(
-              'Fasting hours per day',
-              style: TextStyle(
+              l10n.fastingHoursPerDay,
+              style: const TextStyle(
                 fontFamily: 'Manrope',
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
@@ -55,15 +57,21 @@ class WeekView extends ConsumerWidget {
               spacing: 12,
               runSpacing: 4,
               children: [
-                _LegendItem(color: MambaColors.purple, label: 'Goal reached'),
-                _LegendItem(color: MambaColors.surfaceHover, label: 'Short'),
+                _LegendItem(
+                  color: MambaColors.purple,
+                  label: l10n.legendGoalReached,
+                ),
+                _LegendItem(
+                  color: MambaColors.surfaceHover,
+                  label: l10n.legendShort,
+                ),
               ],
             ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
-          'Daily goal: ${goalHours}h',
+          l10n.dailyGoal(goalHours),
           style: _secondary.copyWith(fontSize: 12),
         ),
         const SizedBox(height: 8),
@@ -75,28 +83,28 @@ class WeekView extends ConsumerWidget {
             children: [
               Expanded(
                 child: _StatCard(
-                  label: 'Average fast',
+                  label: l10n.averageFast,
                   value: average == null ? '—' : formatHoursMinutes(average),
-                  caption: 'per fast',
+                  caption: l10n.perFast,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _StatCard(
-                  label: 'Goal completion',
-                  value: '$within/7',
-                  caption: '${(within / 7 * 100).round()}% of days',
+                  label: l10n.goalCompletion,
+                  value: l10n.goalCompletionValue(within),
+                  caption: l10n.percentOfDays((within / 7 * 100).round()),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _StatCard(
-                  label: 'Best day',
+                  label: l10n.bestDay,
                   value: best == null
                       ? '—'
                       : formatHoursMinutes(best.fastingTime),
                   caption: best == null
-                      ? 'No fasts'
+                      ? l10n.noFasts
                       : '${formatWeekdayShort(best.day)} ${best.day.day}',
                 ),
               ),
@@ -119,7 +127,7 @@ class WeekView extends ConsumerWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'You were within goal on $within of the last 7 days.',
+                l10n.withinGoalOnDays(within),
                 style: _secondary.copyWith(fontSize: 13, height: 1.45),
               ),
             ),

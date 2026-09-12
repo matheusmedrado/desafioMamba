@@ -4,16 +4,20 @@ import 'package:mamba_fast_tracker/features/auth/domain/login_validator.dart';
 void main() {
   group('email', () {
     test('rejects empty input', () {
-      expect(LoginValidator.email(''), 'Enter your email.');
-      expect(LoginValidator.email('   '), 'Enter your email.');
-      expect(LoginValidator.email(null), 'Enter your email.');
+      for (final value in ['', '   ', null]) {
+        expect(LoginValidator.email(value), LoginFieldError.emailRequired);
+      }
     });
 
     test('rejects malformed addresses', () {
-      expect(LoginValidator.email('mamba'), isNotNull);
-      expect(LoginValidator.email('mamba@'), isNotNull);
-      expect(LoginValidator.email('mamba@site'), isNotNull);
-      expect(LoginValidator.email('ma mba@site.com'), isNotNull);
+      for (final value in [
+        'mamba',
+        'mamba@',
+        'mamba@site',
+        'ma mba@site.com',
+      ]) {
+        expect(LoginValidator.email(value), LoginFieldError.emailInvalid);
+      }
     });
 
     test('accepts a normal address with surrounding spaces', () {
@@ -23,13 +27,32 @@ void main() {
 
   group('password', () {
     test('rejects empty input', () {
-      expect(LoginValidator.password(''), 'Enter your password.');
-      expect(LoginValidator.password(null), 'Enter your password.');
+      for (final value in ['', null]) {
+        expect(
+          LoginValidator.password(value),
+          LoginFieldError.passwordRequired,
+        );
+      }
     });
 
     test('requires the minimum length', () {
-      expect(LoginValidator.password('1234567'), isNotNull);
+      expect(
+        LoginValidator.password('1234567'),
+        LoginFieldError.passwordTooShort,
+      );
       expect(LoginValidator.password('12345678'), isNull);
+    });
+
+    test('a confirmation must match the password', () {
+      expect(
+        LoginValidator.confirmPassword('', 'password1'),
+        LoginFieldError.confirmPasswordRequired,
+      );
+      expect(
+        LoginValidator.confirmPassword('password2', 'password1'),
+        LoginFieldError.passwordsDoNotMatch,
+      );
+      expect(LoginValidator.confirmPassword('password1', 'password1'), isNull);
     });
   });
 }

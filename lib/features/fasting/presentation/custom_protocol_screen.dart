@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/mamba_icon.dart';
 import '../../../app/screen_header.dart';
 import '../../../app/theme.dart';
+import '../../../l10n/app_localizations.dart';
 import '../domain/fasting_protocol.dart';
 import 'widgets/fasting_window_bar.dart';
 
@@ -34,13 +35,14 @@ class _CustomProtocolScreenState extends State<CustomProtocolScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final eatingHours = 24 - _fastingHours;
 
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            const ScreenHeader(title: 'Custom protocol', showBack: true),
+            ScreenHeader(title: l10n.customProtocolTitle, showBack: true),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
@@ -66,7 +68,7 @@ class _CustomProtocolScreenState extends State<CustomProtocolScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'A day is 24 hours. Set one side and the other adjusts.',
+                    l10n.customProtocolLead,
                     style: _secondary.copyWith(fontSize: 14),
                   ),
                   const SizedBox(height: 24),
@@ -75,13 +77,13 @@ class _CustomProtocolScreenState extends State<CustomProtocolScreen> {
                     height: 18,
                     fillColor: MambaColors.purpleDeep,
                     trackColor: MambaColors.surfaceHover,
-                    fastingLabel: '${_fastingHours}h fasting',
-                    eatingLabel: '${eatingHours}h eating',
+                    fastingLabel: l10n.fastingHoursLabel(_fastingHours),
+                    eatingLabel: l10n.eatingHoursLabel(eatingHours),
                   ),
                   const SizedBox(height: 8),
                   _StepperRow(
-                    title: 'Fasting',
-                    subtitle: '$_min to $_max hours',
+                    title: l10n.fasting,
+                    subtitle: l10n.hoursRange(_min, _max),
                     value: _fastingHours,
                     onDecrease: _fastingHours > _min
                         ? () => _set(_fastingHours - 1)
@@ -92,8 +94,8 @@ class _CustomProtocolScreenState extends State<CustomProtocolScreen> {
                   ),
                   const Divider(),
                   _StepperRow(
-                    title: 'Eating',
-                    subtitle: '${24 - _max} to ${24 - _min} hours',
+                    title: l10n.eating,
+                    subtitle: l10n.hoursRange(24 - _max, 24 - _min),
                     value: eatingHours,
                     onDecrease: _fastingHours < _max
                         ? () => _set(_fastingHours + 1)
@@ -117,9 +119,7 @@ class _CustomProtocolScreenState extends State<CustomProtocolScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Fasts longer than 20 hours are not recommended '
-                          'without medical guidance. The app will still '
-                          'track them.',
+                          l10n.longFastNote,
                           style: _secondary.copyWith(
                             fontSize: 13,
                             height: 1.45,
@@ -134,7 +134,7 @@ class _CustomProtocolScreenState extends State<CustomProtocolScreen> {
             _Footer(
               child: FilledButton(
                 onPressed: () => Navigator.of(context).pop(_fastingHours),
-                child: const Text('Use this protocol'),
+                child: Text(l10n.useThisProtocol),
               ),
             ),
           ],
@@ -161,6 +161,8 @@ class _StepperRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 18),
       child: Row(
@@ -194,7 +196,7 @@ class _StepperRow extends StatelessWidget {
                 children: [
                   _StepButton(
                     icon: MambaIcons.minus,
-                    label: 'Decrease $title hours',
+                    label: l10n.decreaseHours(title),
                     onPressed: onDecrease,
                   ),
                   SizedBox(
@@ -213,7 +215,7 @@ class _StepperRow extends StatelessWidget {
                   ),
                   _StepButton(
                     icon: MambaIcons.plus,
-                    label: 'Increase $title hours',
+                    label: l10n.increaseHours(title),
                     onPressed: onIncrease,
                   ),
                 ],

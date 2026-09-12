@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/formatting.dart';
+import '../../../l10n/app_localizations.dart';
 import '../domain/calorie_limit.dart';
 import 'today_summary.dart';
 
@@ -38,7 +40,7 @@ class _CalorieLimitSheetState extends ConsumerState<CalorieLimitSheet> {
 
   var _autovalidate = AutovalidateMode.disabled;
   var _saving = false;
-  String? _error;
+  var _failed = false;
 
   @override
   void dispose() {
@@ -54,7 +56,7 @@ class _CalorieLimitSheetState extends ConsumerState<CalorieLimitSheet> {
     }
     setState(() {
       _saving = true;
-      _error = null;
+      _failed = false;
     });
 
     try {
@@ -66,14 +68,17 @@ class _CalorieLimitSheetState extends ConsumerState<CalorieLimitSheet> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = 'Could not save the limit. Try again.';
+        _failed = true;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final textTheme = Theme.of(context).textTheme;
+    final min = formatThousands(CalorieLimit.min);
+    final max = formatThousands(CalorieLimit.max);
 
     return Padding(
       // Keeps the form above the keyboard.
@@ -88,17 +93,15 @@ class _CalorieLimitSheetState extends ConsumerState<CalorieLimitSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Daily calorie limit', style: textTheme.titleLarge),
+                Text(l10n.calorieLimitTitle, style: textTheme.titleLarge),
                 const SizedBox(height: 6),
-                Text(
-                  'A day is within goal when its calories stay at or under '
-                  'this limit and a fast reaches its goal.',
-                  style: textTheme.bodySmall,
-                ),
+                Text(l10n.calorieLimitBody, style: textTheme.bodySmall),
                 const SizedBox(height: 24),
                 TextFormField(
                   controller: _limitController,
-                  validator: CalorieLimit.validate,
+                  validator: (value) => CalorieLimit.isValidText(value)
+                      ? null
+                      : l10n.errorCalorieLimit(min, max),
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.done,
                   inputFormatters: [
@@ -106,15 +109,15 @@ class _CalorieLimitSheetState extends ConsumerState<CalorieLimitSheet> {
                     LengthLimitingTextInputFormatter(4),
                   ],
                   onFieldSubmitted: (_) => _save(),
-                  decoration: const InputDecoration(
-                    suffixText: 'kcal',
-                    helperText: 'Whole numbers, 500 to 5,000',
+                  decoration: InputDecoration(
+                    suffixText: l10n.kcal,
+                    helperText: l10n.calorieLimitHelper(min, max),
                   ),
                 ),
-                if (_error != null) ...[
+                if (_failed) ...[
                   const SizedBox(height: 12),
                   Text(
-                    _error!,
+                    l10n.limitSaveError,
                     style: textTheme.bodySmall?.copyWith(
                       color: MambaColors.danger,
                     ),
@@ -123,7 +126,7 @@ class _CalorieLimitSheetState extends ConsumerState<CalorieLimitSheet> {
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: _saving ? null : _save,
-                  child: Text(_saving ? 'Saving...' : 'Save limit'),
+                  child: Text(_saving ? l10n.saving : l10n.saveLimit),
                 ),
               ],
             ),

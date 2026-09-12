@@ -3,9 +3,15 @@ import 'package:flutter/material.dart';
 import '../features/fasting/presentation/fasting_home_screen.dart';
 import '../features/history/presentation/history_screen.dart';
 import '../features/meals/presentation/meals_screen.dart';
+import '../l10n/app_localizations.dart';
 import 'home_shell_scope.dart';
 import 'mamba_icon.dart';
 import 'theme.dart';
+
+List<String> _tabLabels(BuildContext context) {
+  final l10n = AppLocalizations.of(context)!;
+  return [l10n.today, l10n.mealsTab, l10n.historyTab];
+}
 
 /// Signed-in tabs. Each tab is built on first open and then kept.
 class HomeShell extends StatefulWidget {
@@ -22,10 +28,10 @@ class _HomeShellState extends State<HomeShell> {
     HistoryScreen(),
   ];
 
-  static const _tabs = [
-    (MambaIcons.timer, 'Today'),
-    (MambaIcons.meals, 'Meals'),
-    (MambaIcons.calendar, 'History'),
+  static const _icons = [
+    MambaIcons.timer,
+    MambaIcons.meals,
+    MambaIcons.calendar,
   ];
 
   var _index = HomeShellScope.todayTab;
@@ -63,11 +69,11 @@ class _HomeShellState extends State<HomeShell> {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
                 child: Row(
                   children: [
-                    for (final (index, (icon, label)) in _tabs.indexed)
+                    for (final (index, icon) in _icons.indexed)
                       Expanded(
                         child: _NavItem(
                           icon: icon,
-                          label: label,
+                          label: _tabLabels(context)[index],
                           selected: index == _index,
                           onTap: () => _select(index),
                         ),

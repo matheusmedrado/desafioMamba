@@ -4,15 +4,15 @@ import 'package:mamba_fast_tracker/features/meals/domain/meal_validator.dart';
 void main() {
   group('name', () {
     test('rejects empty input', () {
-      expect(MealValidator.name(''), 'Give the meal a name.');
-      expect(MealValidator.name('   '), 'Give the meal a name.');
-      expect(MealValidator.name(null), 'Give the meal a name.');
+      for (final value in ['', '   ', null]) {
+        expect(MealValidator.name(value), MealFieldError.nameRequired);
+      }
     });
 
     test('limits the trimmed length', () {
       expect(MealValidator.name('a' * 60), isNull);
       expect(MealValidator.name(' ${'a' * 60} '), isNull);
-      expect(MealValidator.name('a' * 61), isNotNull);
+      expect(MealValidator.name('a' * 61), MealFieldError.nameTooLong);
     });
   });
 
@@ -27,7 +27,7 @@ void main() {
       for (final value in [null, '', '0', '-5', '5001', '12.5', 'abc']) {
         expect(
           MealValidator.calories(value),
-          'Enter a whole number between 1 and 5,000.',
+          MealFieldError.calories,
           reason: 'value: $value',
         );
       }

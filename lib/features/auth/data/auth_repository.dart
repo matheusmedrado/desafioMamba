@@ -14,6 +14,8 @@ abstract interface class AuthRepository {
 
   Future<void> sendPasswordReset(String email);
 
+  Future<void> updateName(String name);
+
   Future<void> signOut();
 }
 
@@ -22,10 +24,9 @@ class FirebaseAuthRepository implements AuthRepository {
 
   final FirebaseAuth _auth;
 
+  /// `userChanges` also emits after a profile change, such as a new name.
   @override
-  Stream<AuthUser?> authStateChanges() => _auth.authStateChanges().map(
-    (user) => user == null ? null : AuthUser(id: user.uid, email: user.email!),
-  );
+  Stream<AuthUser?> authStateChanges() => _auth.userChanges().map(_toUser);
 
   @override
   Future<void> signIn({required String email, required String password}) {
@@ -50,7 +51,27 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> updateName(String name) {
+    return _guard(() async {
+      final user = _auth.currentUser;
+      if (user == null) throw AuthFailure.unknown;
+      await user.updateDisplayName(name.isEmpty ? null : name);
+      await user.reload();
+    });
+  }
+
+  @override
   Future<void> signOut() => _guard(_auth.signOut);
+
+  AuthUser? _toUser(User? user) {
+    if (user == null) return null;
+    final name = user.displayName;
+    return AuthUser(
+      id: user.uid,
+      email: user.email!,
+      name: name == null || name.isEmpty ? null : name,
+    );
+  }
 
   Future<void> _guard(Future<void> Function() action) async {
     try {

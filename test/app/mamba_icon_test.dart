@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mamba_fast_tracker/l10n/app_localizations.dart';
 import 'package:mamba_fast_tracker/app/mamba_icon.dart';
 
 void main() {
   testWidgets('every icon renders at the requested size', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Wrap(
           children: [
             for (final icon in MambaIcons.values) MambaIcon(icon, size: 24),

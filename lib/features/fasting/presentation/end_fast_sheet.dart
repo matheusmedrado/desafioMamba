@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/mamba_icon.dart';
 import '../../../app/theme.dart';
 import '../../../core/formatting.dart';
+import '../../../l10n/app_localizations.dart';
 import '../domain/fasting_session.dart';
 
 /// Asks before ending [session]. Returns true when the user confirms.
@@ -29,6 +30,7 @@ class EndFastSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final textTheme = Theme.of(context).textTheme;
     final reached = session.goalReachedAt(now);
 
@@ -39,10 +41,10 @@ class EndFastSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('End this fast?', style: textTheme.titleLarge),
+            Text(l10n.endThisFast, style: textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(
-              'Your session will be saved to History.',
+              l10n.endSheetBody,
               style: textTheme.bodyMedium?.copyWith(
                 color: MambaColors.textSecondary,
               ),
@@ -66,26 +68,10 @@ class EndFastSheet extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text.rich(
-                          TextSpan(
-                            children: [
-                              const TextSpan(text: 'You’re '),
-                              TextSpan(
-                                text: formatHoursMinutes(
-                                  session.remainingAt(now),
-                                ),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: MambaColors.textPrimary,
-                                ),
-                              ),
-                              TextSpan(
-                                text:
-                                    ' short of your ${session.target.inHours}h '
-                                    'goal. Ending now marks today as '
-                                    '“goal not reached”.',
-                              ),
-                            ],
+                        child: Text(
+                          l10n.endSheetWarning(
+                            formatHoursMinutes(session.remainingAt(now)),
+                            session.target.inHours,
                           ),
                           style: textTheme.bodySmall,
                         ),
@@ -102,7 +88,7 @@ class EndFastSheet extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text('Fasted so far', style: textTheme.bodyMedium),
+                    child: Text(l10n.fastedSoFar, style: textTheme.bodyMedium),
                   ),
                   Text(
                     formatHoursMinutes(session.elapsedAt(now)),
@@ -118,7 +104,7 @@ class EndFastSheet extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('Keep fasting'),
+                    child: Text(l10n.keepFasting),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -126,7 +112,7 @@ class EndFastSheet extends StatelessWidget {
                   child: FilledButton(
                     key: confirmKey,
                     onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text('End fast'),
+                    child: Text(l10n.endFast),
                   ),
                 ),
               ],

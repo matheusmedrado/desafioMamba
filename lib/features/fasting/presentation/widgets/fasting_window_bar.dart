@@ -7,23 +7,23 @@ class FastingWindowBar extends StatelessWidget {
   const FastingWindowBar({
     super.key,
     required this.fastingHours,
+    required this.fastingLabel,
+    required this.eatingLabel,
     this.height = 6,
     this.fillColor = MambaColors.purple,
     this.trackColor = MambaColors.surfaceElevated,
     this.fastingLabelColor = MambaColors.textPrimary,
     this.eatingLabelColor = MambaColors.textSecondary,
-    this.fastingLabel,
-    this.eatingLabel,
   });
 
   final int fastingHours;
+  final String fastingLabel;
+  final String eatingLabel;
   final double height;
   final Color fillColor;
   final Color trackColor;
   final Color fastingLabelColor;
   final Color eatingLabelColor;
-  final String? fastingLabel;
-  final String? eatingLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -58,14 +58,14 @@ class FastingWindowBar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              fastingLabel ?? '${fastingHours}h fast',
+              fastingLabel,
               style: labelStyle?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: fastingLabelColor,
               ),
             ),
             Text(
-              eatingLabel ?? '${eatingHours}h eating',
+              eatingLabel,
               style: labelStyle?.copyWith(color: eatingLabelColor),
             ),
           ],
