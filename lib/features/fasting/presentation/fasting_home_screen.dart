@@ -11,7 +11,7 @@ import '../../../app/theme.dart';
 import '../../../core/clock.dart';
 import '../../../core/formatting.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../auth/presentation/settings_sheet.dart';
+import '../../auth/presentation/profile_button.dart';
 import '../../dashboard/presentation/day_summary_section.dart';
 import '../domain/fasting_protocol.dart';
 import '../domain/fasting_session.dart';
@@ -68,7 +68,6 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final protocol = ref.watch(selectedProtocolProvider);
     final fastingState = ref.watch(fastingControllerProvider);
     final now = ref.read(clockProvider).now();
@@ -83,11 +82,7 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: BrandHeader(
-                actionIcon: MambaIcons.settings,
-                actionLabel: l10n.settings,
-                onAction: () => showSettingsSheet(context),
-              ),
+              child: const BrandHeader(action: ProfileButton()),
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -95,7 +90,6 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _DayHeading(now: now, compact: active != null),
                     if (fastingState.isLoading && !fastingState.hasValue)
                       const _LoadingContent()
                     else if (fastingState.hasError && !fastingState.hasValue)
@@ -176,38 +170,6 @@ class _FastingHomeScreenState extends ConsumerState<FastingHomeScreen>
     if (action == FastCompleteAction.logMeal && mounted) {
       HomeShellScope.maybeOf(context)?.selectTab(HomeShellScope.mealsTab);
     }
-  }
-}
-
-class _DayHeading extends StatelessWidget {
-  const _DayHeading({required this.now, required this.compact});
-
-  final DateTime now;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: compact ? 12 : 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            greetingText(l10n, now),
-            style: compact
-                ? MambaTextStyles.screenTitle.copyWith(
-                    fontSize: 20,
-                    letterSpacing: -0.9,
-                  )
-                : MambaTextStyles.screenTitle,
-          ),
-          const SizedBox(height: 5),
-          Text(formatDayLabel(now), style: _secondary.copyWith(fontSize: 12)),
-        ],
-      ),
-    );
   }
 }
 

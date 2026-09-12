@@ -7,13 +7,6 @@ void main() {
     expect(formatDayLabel(DateTime(2026, 1, 31)), 'Saturday, 31 Jan');
   });
 
-  test('greetingAt follows the local hour', () {
-    expect(greetingAt(DateTime(2026, 9, 11, 5)), Greeting.morning);
-    expect(greetingAt(DateTime(2026, 9, 11, 12)), Greeting.afternoon);
-    expect(greetingAt(DateTime(2026, 9, 11, 17, 59)), Greeting.afternoon);
-    expect(greetingAt(DateTime(2026, 9, 11, 18)), Greeting.evening);
-  });
-
   test('relativeDayOf names nearby days and marks the others', () {
     final now = DateTime(2026, 9, 11, 23);
 

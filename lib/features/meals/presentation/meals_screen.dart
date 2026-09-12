@@ -10,7 +10,7 @@ import '../../../app/theme.dart';
 import '../../../core/clock.dart';
 import '../../../core/formatting.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../auth/presentation/settings_sheet.dart';
+import '../../auth/presentation/profile_button.dart';
 import '../domain/meal.dart';
 import 'meal_sheets.dart';
 import 'meals_controller.dart';
@@ -75,11 +75,7 @@ class _MealsScreenState extends ConsumerState<MealsScreen>
               ScreenHeader(
                 title: l10n.mealsTab,
                 subtitle: formatDayLabel(now),
-                action: RoundIconButton(
-                  icon: MambaIcons.settings,
-                  label: l10n.settings,
-                  onPressed: () => showSettingsSheet(context),
-                ),
+                action: const ProfileButton(),
               ),
               Expanded(
                 child: mealsState.hasValue

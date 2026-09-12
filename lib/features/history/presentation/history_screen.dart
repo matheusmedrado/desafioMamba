@@ -3,14 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../app/brand_header.dart';
 import '../../../app/mamba_icon.dart';
 import '../../../app/screen_header.dart';
 import '../../../app/theme.dart';
 import '../../../core/clock.dart';
 import '../../../core/formatting.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../auth/presentation/settings_sheet.dart';
+import '../../auth/presentation/profile_button.dart';
 import '../../dashboard/domain/day_summary.dart';
 import '../../fasting/domain/fasting_protocol.dart';
 import '../domain/history_day.dart';
@@ -69,14 +68,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
         bottom: false,
         child: Column(
           children: [
-            ScreenHeader(
-              title: l10n.historyTab,
-              action: RoundIconButton(
-                icon: MambaIcons.settings,
-                label: l10n.settings,
-                onPressed: () => showSettingsSheet(context),
-              ),
-            ),
+            ScreenHeader(title: l10n.historyTab, action: const ProfileButton()),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
               child: _ViewSwitch(

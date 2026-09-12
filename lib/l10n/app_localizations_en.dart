@@ -22,6 +22,67 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logOut => 'Log out';
 
   @override
+  String get save => 'Save';
+
+  @override
+  String get accountSection => 'Account';
+
+  @override
+  String get appSection => 'App';
+
+  @override
+  String get addYourName => 'Add your name';
+
+  @override
+  String get yourName => 'Your name';
+
+  @override
+  String get yourNameHint => 'How should we call you?';
+
+  @override
+  String get changeName => 'Change name';
+
+  @override
+  String get profilePhoto => 'Profile photo';
+
+  @override
+  String get changePhoto => 'Change photo';
+
+  @override
+  String get chooseFromGallery => 'Choose from gallery';
+
+  @override
+  String get removePhoto => 'Remove photo';
+
+  @override
+  String get photoUpdated => 'Photo updated';
+
+  @override
+  String get photoRemoved => 'Photo removed';
+
+  @override
+  String get nameUpdated => 'Name updated';
+
+  @override
+  String get couldNotSaveProfile => 'Could not save. Try again.';
+
+  @override
+  String get changePassword => 'Change password';
+
+  @override
+  String get changePasswordSubtitle =>
+      'We email you a link to choose a new one';
+
+  @override
+  String get language => 'Language';
+
+  @override
+  String get languageFollowsDevice => 'Follows your device';
+
+  @override
+  String get version => 'Version';
+
+  @override
   String get tryAgain => 'Try again';
 
   @override
@@ -38,15 +99,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tomorrow => 'Tomorrow';
-
-  @override
-  String get greetingMorning => 'Good morning';
-
-  @override
-  String get greetingAfternoon => 'Good afternoon';
-
-  @override
-  String get greetingEvening => 'Good evening';
 
   @override
   String get mealsTab => 'Meals';

@@ -10,11 +10,3 @@ String relativeDayText(AppLocalizations l10n, DateTime time, DateTime now) {
     RelativeDay.other => formatDayLabel(time),
   };
 }
-
-String greetingText(AppLocalizations l10n, DateTime now) {
-  return switch (greetingAt(now)) {
-    Greeting.morning => l10n.greetingMorning,
-    Greeting.afternoon => l10n.greetingAfternoon,
-    Greeting.evening => l10n.greetingEvening,
-  };
-}

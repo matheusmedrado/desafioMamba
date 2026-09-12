@@ -2,16 +2,6 @@ import 'package:intl/intl.dart';
 
 import 'local_day.dart';
 
-/// Part of the day for the greeting. The screen turns it into a message.
-enum Greeting { morning, afternoon, evening }
-
-Greeting greetingAt(DateTime time) {
-  final hour = time.toLocal().hour;
-  if (hour < 12) return Greeting.morning;
-  if (hour < 18) return Greeting.afternoon;
-  return Greeting.evening;
-}
-
 /// A day named after [now]. Other days are shown with their date.
 enum RelativeDay { today, tomorrow, yesterday, other }
 

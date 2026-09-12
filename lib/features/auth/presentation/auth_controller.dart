@@ -28,6 +28,10 @@ class AuthController extends StreamNotifier<AuthUser?> {
         .sendPasswordReset(_normalize(email));
   }
 
+  Future<void> updateName(String name) {
+    return ref.read(authRepositoryProvider).updateName(name.trim());
+  }
+
   Future<void> signOut() => ref.read(authRepositoryProvider).signOut();
 
   static String _normalize(String email) => email.trim().toLowerCase();

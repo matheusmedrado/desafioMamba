@@ -22,6 +22,67 @@ class AppLocalizationsPt extends AppLocalizations {
   String get logOut => 'Sair';
 
   @override
+  String get save => 'Salvar';
+
+  @override
+  String get accountSection => 'Conta';
+
+  @override
+  String get appSection => 'App';
+
+  @override
+  String get addYourName => 'Adicione seu nome';
+
+  @override
+  String get yourName => 'Seu nome';
+
+  @override
+  String get yourNameHint => 'Como podemos te chamar?';
+
+  @override
+  String get changeName => 'Alterar nome';
+
+  @override
+  String get profilePhoto => 'Foto de perfil';
+
+  @override
+  String get changePhoto => 'Alterar foto';
+
+  @override
+  String get chooseFromGallery => 'Escolher da galeria';
+
+  @override
+  String get removePhoto => 'Remover foto';
+
+  @override
+  String get photoUpdated => 'Foto atualizada';
+
+  @override
+  String get photoRemoved => 'Foto removida';
+
+  @override
+  String get nameUpdated => 'Nome atualizado';
+
+  @override
+  String get couldNotSaveProfile => 'Não foi possível salvar. Tente de novo.';
+
+  @override
+  String get changePassword => 'Alterar senha';
+
+  @override
+  String get changePasswordSubtitle =>
+      'Enviamos um link por e-mail para criar uma nova';
+
+  @override
+  String get language => 'Idioma';
+
+  @override
+  String get languageFollowsDevice => 'Segue o idioma do aparelho';
+
+  @override
+  String get version => 'Versão';
+
+  @override
   String get tryAgain => 'Tentar de novo';
 
   @override
@@ -38,15 +99,6 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get tomorrow => 'Amanhã';
-
-  @override
-  String get greetingMorning => 'Bom dia';
-
-  @override
-  String get greetingAfternoon => 'Boa tarde';
-
-  @override
-  String get greetingEvening => 'Boa noite';
 
   @override
   String get mealsTab => 'Refeições';

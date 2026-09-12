@@ -55,9 +55,11 @@ class FastCompleteScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: BrandHeader(
-                actionIcon: MambaIcons.close,
-                actionLabel: l10n.close,
-                onAction: () => close(FastCompleteAction.backToToday),
+                action: RoundIconButton(
+                  icon: MambaIcons.close,
+                  label: l10n.close,
+                  onPressed: () => close(FastCompleteAction.backToToday),
+                ),
               ),
             ),
             Expanded(
