@@ -396,6 +396,7 @@ Trade-off: every screen depends on the localizations, and a third language means
 
 - The protocol choice is one small record: the selected protocol id plus the custom fasting hours. Custom hours are kept when a preset is selected again, so the custom card stays editable. Presets are constants in code, since they never change and there is nothing to store for them.
 - Plain `Navigator` instead of a routing package. A few tabs and a handful of pushed screens do not justify one.
+- The wordmark in the header and on login is the Mamba Growth logo, drawn white for the dark background. It is a single image asset, so replacing it did not touch any code.
 - Manrope is bundled as an asset instead of fetched at runtime, so the app renders correctly offline and on first launch.
 - The Dockerfile installs the toolchain from the official Flutter and Android archives instead of a community image, so the Flutter version can be pinned to exactly what CI uses.
 - Android is the only generated platform because the challenge requires an APK or AAB.
@@ -438,10 +439,11 @@ Trade-off: every screen depends on the localizations, and a third language means
 
 ## Time Spent
 
-About 23 hours across three days. The hours come from the commit history, so they cover the time between the first and last commit of each day.
+About 24 hours across four days. The hours come from the commit history, so they cover the time between the first and last commit of each day.
 
 | Day | Hours | What was done |
 | --- | --- | --- |
 | Day 1 | ~10h | Project setup, architecture, CI, Docker build, login with a local session, and fasting protocols |
 | Day 2 | ~4h | Fasting timer with persisted timestamps, lifecycle handling, and local notifications |
 | Day 3 | ~9h | Meals, daily summary, History, weekly chart, UI polish, more tests, Firebase accounts, data per account, ongoing notification, icon, signing, and this README |
+| Day 4 | ~1h | Replaced the wordmark with the Mamba Growth logo, retook the affected screenshots, and released 1.0.1 |
